@@ -382,7 +382,7 @@ EDGE = true;
 B(195.125, 0, 36, 103.875, .75, 4, mat.stone);
 INFO = 'Faucet - illustrative.';
 { const c = new THREE.CatmullRomCurve3([[248.5, 36, 1.5], [248.5, 48, 1.5], [248.5, 51.5, 4.5], [248.5, 50, 8], [248.5, 45, 9]].map(p => new THREE.Vector3(...p)));
-  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 40, .45, 12), mat.nickel); f.castShadow = true; f.userData.info = INFO; props.add(f); }
+  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 40, .45, 12), mat.hw); f.castShadow = true; f.userData.info = INFO; props.add(f); }
 
 // ---------- entry wall (A2): drop zone #3 and bench #1 / #2 ----------
 INFO = '#3 Drop zone 43 - counter height, walnut top. Paneled 24 drink fridge + 15 ice maker (models TBD), walnut shelves at 54 and 69-1/4.';
@@ -441,12 +441,12 @@ const U = (u, w) => IX - u - w;
 INFO = '#14 Island 26 - Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H; 15.1 open-drawer clearance.';
 B(196.1, 68.5, 4, 26, 24, 30.75); face(197.1, 5.5, 24, 12, 68.5, -1, 'drawer');
 EDGE = false; B(197.1, 67.85, 18.5, 24, .65, 15, mat.steel); B(198.6, 67.7, 21, 21, .2, 10, mat.black); pull(209.1, 67.3, 31, 18); EDGE = true;
-INFO = '#11 Island 54 - 18 prep sink at the far right (Kevin markup); 4 doors, 1 drawer, false front.';
-B(142.1, 68.5, 4, 54, 24, 30.75);
-face(U(28, 24.5), 27.75, 24.5, 5.5, 68.5, -1, 'drawer'); face(U(55.5, 22.5), 27.75, 22.5, 5.5, 68.5, -1, 'drawer');
-[[28, 12.25, 'L'], [40.25, 12.25, 'R'], [55.5, 11.25, 'L'], [66.75, 11.25, 'R']].forEach(([u, w, k]) => face(U(u, w), 5.5, w, 20.75, 68.5, -1, 'door', k));
+INFO = '#11 Island 57 - openings 21-1/2 + 29; 23 copper prep sink bay at the end, sink 1-1/2 from the island end (Kevin 10/25); 4 doors, 1 drawer, false front.';
+B(139.1, 68.5, 4, 57, 24, 30.75);
+face(U(28, 21.5), 27.75, 21.5, 5.5, 68.5, -1, 'drawer'); face(U(52.5, 29), 27.75, 29, 5.5, 68.5, -1, 'drawer');
+[[28, 10.75, 'L'], [38.75, 10.75, 'R'], [52.5, 14.5, 'L'], [67, 14.5, 'R']].forEach(([u, w, k]) => face(U(u, w), 5.5, w, 20.75, 68.5, -1, 'door', k));
 INFO = 'Island toe / legs / back panels per R3. Seating overhang 14 on the back side.';
-B(142.6, 71.5, 0, 79, 21, 4, mat.reveal, { edges: false });
+B(139.6, 71.5, 0, 82, 21, 4, mat.reveal, { edges: false });
 // R3 sheet 1.4 detailing: framed end panels #13 / #15, framed back panel #12, one leg at the seating corner.
 // Frame members (3 stiles, 3 top rail, 6-1/2 bottom rail to floor) stand 1/4 proud of a flat recessed panel.
 function endX(x0, x1, y0, y1, dir) {                       // framed end panel on a constant-X face
@@ -455,14 +455,14 @@ function endX(x0, x1, y0, y1, dir) {                       // framed end panel o
   B(fx, y0, 0, .25, 3, 34.75); B(fx, y1 - 3, 0, .25, 3, 34.75);
   B(fx, y0 + 3, 31.75, .25, d - 6, 3); B(fx, y0 + 3, 0, .25, d - 6, 6.5);
 }
-INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, closes the seating overhang. Panel 35-1/2 x 25-1/4 (R3 1.4).';
-endX(137.6, 142.1, 68.5, 110, -1);
+INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, built 1-1/2 thick so the copper sink can sit 1-1/2 from the end (Kevin 10/25). Panel 35-1/2 x 25-1/4.';
+endX(137.6, 139.1, 68.5, 110, -1);
 INFO = '#13 End panel (seating end) - framed on the 28-1/2 cabinet, panel 22-1/2 x 25-1/4 (R3 1.4). Knee space open to the leg.';
 endX(222.1, 224.85, 68.5, 97, 1);
-INFO = '#12 Back seating panel - 80 framed, three panels 23-5/8 / 23-3/4 / 23-5/8 x 25-1/4, 6-1/2 bottom rail (R3 1.4).';
-B(142.1, 94, 0, 80, 3, 34.75);
-for (const [x, w] of [[142.1, 3], [168.725, 3], [195.475, 3]]) B(x, 97, 0, w, .25, 34.75);
-B(145.1, 97, 31.75, 77, .25, 3); B(145.1, 97, 0, 77, .25, 6.5);
+INFO = '#12 Back seating panel - 83 framed, three panels 24-5/8 / 24-3/4 / 24-5/8 x 25-1/4, 6-1/2 bottom rail.';
+B(139.1, 94, 0, 83, 3, 34.75);
+for (const [x, w] of [[139.1, 3], [166.725, 3], [194.475, 3]]) B(x, 97, 0, w, .25, 34.75);
+B(142.1, 97, 31.75, 80, .25, 3); B(142.1, 97, 0, 80, .25, 6.5);
 INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner (R3 1.4). Verify leg detail.';
 for (const y of [69, 106.5]) { B(234.6, y, 4, 3.5, 3.5, 30.75); B(234.1, y - .5, 0, 4.5, 4.5, 4); }
 INFO = 'Island apron - 3 tall between the two legs at the #13 end (R3 CV).';
@@ -472,10 +472,10 @@ INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (illustrative)
 // Default: 18 stainless (as drawn). Option: Kevin's Sinkology Orwell SK201-23AC 23 hammered copper (23 x 17-3/4).
 // Right of the sink: 3 soapstone + 4 walnut to the island end (Ryan); 4 soapstone behind the faucet; ~16 drainboard left.
 const topStone = new THREE.Group(), topSW = new THREE.Group(), prep = new THREE.Group(); island.add(topStone, topSW, prep);
-let sx = 144.6;
+let sx = 139.1;                                         // sink 1-1/2 from the island end (Kevin 10/25)
 function buildIslandTop(sw, sd, copper) {
   for (const g of [topStone, topSW, prep]) { while (g.children.length) g.remove(g.children[0]); }
-  const sy0 = 72.5, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;
+  const sy0 = 69, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;   // 1-1/2 from the front edge
   const cut = m => {                                             // full 101 x 43-1/2 slab with the sink cutout
     B(137.6, 67.5, 34.75, sx - 137.6, 43.5, 1.25, m); B(sx + sw, 67.5, 34.75, 238.6 - sx - sw, 43.5, 1.25, m);
     B(sx, 67.5, 34.75, sw, sy0 - 67.5, 1.25, m); B(sx, sy1, 34.75, sw, 111 - sy1, 1.25, m);
@@ -483,23 +483,23 @@ function buildIslandTop(sw, sd, copper) {
   };
   PARENT = topStone; INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (perimeter is white quartzite per Kevin).'; cut(mat.stone);
   PARENT = topSW;
-  INFO = 'Island option B (Kevin board: black walnut + soapstone): soapstone base top with a 2 in walnut slab sitting ON TOP of it on three sides of the sink area (end, back, drainboard side); front open to the soapstone edge.';
-  const x0 = sx - 3, x1 = sx + sw + 16, y1 = fy + 1 + 4, W = mat.islandWalnut;
+  INFO = 'Island top (Kevin 10/25 board): black walnut, 2 in, sitting on a soapstone base, with a 42 x 24 soapstone inset at the prep-sink end, open to the end and front edges.';
+  const x1 = 137.6 + 42, y1 = 67.5 + 24, W = mat.islandWalnut;
   cut(mat.soap);
-  B(137.6, 67.5, 36, x0 - 137.6, 43.5, 2, W); B(x0, y1, 36, x1 - x0, 111 - y1, 2, W); B(x1, 67.5, 36, 238.6 - x1, 43.5, 2, W);
-  outline(137.6, 67.5, 36, x0 - 137.6, 43.5, 2); outline(x0, y1, 36, x1 - x0, 111 - y1, 2); outline(x1, 67.5, 36, 238.6 - x1, 43.5, 2);
-  INFO = 'Option B: exposed soapstone around the prep sink - 3 right of the sink, 4 behind the faucet, ~16 drainboard on the left with grooves sloped to the sink; soapstone runs to the front edge.';
+  B(x1, 67.5, 36, 238.6 - x1, 43.5, 2, W); B(137.6, y1, 36, x1 - 137.6, 111 - y1, 2, W);
+  outline(x1, 67.5, 36, 238.6 - x1, 43.5, 2); outline(137.6, y1, 36, x1 - 137.6, 111 - y1, 2);
+  INFO = 'Soapstone inset 42 x 24 (Kevin 10/25): copper prep sink 1-1/2 from the end and front edges, sloped drainboard to the left of the sink, faucet behind. Stone fabricator to approve edge support.';
   for (let i = 0; i < 6; i++) {
-    const g = new THREE.Mesh(new THREE.BoxGeometry(13, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 8.5, 36.005, sy0 + 2 + i * (sd - 4) / 5);
+    const gl = x1 - (sx + sw) - 4, g = new THREE.Mesh(new THREE.BoxGeometry(gl, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 2 + gl / 2, 36.005, sy0 + 2 + i * (sd - 4) / 5);
     g.rotation.z = -.012; g.userData.info = INFO; topSW.add(g); }
   PARENT = prep;
-  INFO = copper ? 'OPTION (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep. Needs ~26 sink base: #11 re-split to about 21-1/2 + 25-1/2 openings (not yet drawn on A3).'
-                : 'Prep sink 18 (as drawn on A3). Option: Kevin 23 copper Orwell.';
+  INFO = copper ? 'Prep sink (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep. #11 sink bay 25-1/2 (A3). 7 from the island end: Kevin ~1-1/2 target not buildable over the 4-1/2 framed end.'
+                : 'OPTION: 18 stainless prep sink. Drawn: Kevin 23 copper Orwell.';
   const sm = copper ? mat.copper : mat.steel, d = 8.9;
   B(sx, sy0, 27, sw, sd, .5, sm); B(sx, sy0, 27, .5, sd, d, sm); B(sx + sw - .5, sy0, 27, .5, sd, d, sm);
   B(sx, sy0, 27, sw, .5, d, sm); B(sx, sy1 - .5, 27, sw, .5, d, sm);
   const c = new THREE.CatmullRomCurve3([[sx + sw / 2, 36, fy], [sx + sw / 2, 46, fy], [sx + sw / 2, 48.5, fy - 2.5], [sx + sw / 2, 46, fy - 6.5]].map(p => new THREE.Vector3(...p)));
-  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 30, .38, 10), mat.hw); f.castShadow = true; f.userData.info = 'Prep faucet - illustrative'; prep.add(f);
+  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 30, .38, 10), mat.hw); f.castShadow = true; f.userData.info = 'Prep faucet - illustrative (matte black per Kevin board)'; prep.add(f);
   PARENT = savedP; EDGE = savedE;
 }
 buildIslandTop(18, 16, false);
@@ -634,7 +634,7 @@ const toggles = {
   'Table & chairs': { on: true, f: v => dining.visible = v },
   'Cable lighting (between beams)': { on: true, f: v => cableLights.visible = v },
   'Island pendants': { on: true, f: v => lighting.visible = v },
-  'Island B: soapstone + walnut on top (off = A quartzite)': { on: false, f: v => { topSW.visible = v; topStone.visible = !v; } },
+  'Island top: walnut + soapstone inset (Kevin; off = quartzite)': { on: true, f: v => { topSW.visible = v; topStone.visible = !v; } },
   'Hood band / shelves / #3 top: reclaimed red oak': { on: false, f: v => { const w = WOOD[v ? 'reclaimed' : 'walnut']; mat.nat.map = w[0]; mat.nat.bumpMap = w[1]; mat.nat.roughness = v ? .7 : .5; mat.nat.needsUpdate = true; } },
 };
 toggles.Beams = toggles['Beams & soffit area'];
@@ -677,12 +677,12 @@ let islandColor = null;
 optionBar('Cabinet color', [['White Dove (assumed)', 0xefebe0], ['BM Chantilly Lace OC-65 (Kevin board)', 0xf5f4ee]],
   c => { mat.paint.color.setHex(c); if (islandColor === null) mat.islandPaint.color.setHex(c); });
 optionBar('Hardware', [['Nickel', [0xb9b6ad, .28, .9]], ['Brushed bronze (Kevin 9/24)', [0x8a6a44, .38, .85]], ['Matte black (Kevin 10/25)', [0x1d1d1d, .6, .3]]],
-  ([c, r, m]) => { mat.hw.color.setHex(c); mat.hw.roughness = r; mat.hw.metalness = m; });
-optionBar('Uppers at sink (#10, #16)', [['Shaker panel', false], ['Glass front (Kevin 10/25 board)', true]],
-  v => { glassPanels.forEach(p => p && (p.material = v ? mat.glassDoor : mat.paint)); glassShelves.forEach(sh => sh.visible = v); });
+  ([c, r, m]) => { mat.hw.color.setHex(c); mat.hw.roughness = r; mat.hw.metalness = m; }, 2);
+optionBar('Uppers at sink (#10, #16)', [['Shaker panel', false], ['Glass front (Kevin 10/25)', true]],
+  v => { glassPanels.forEach(p => p && (p.material = v ? mat.glassDoor : mat.paint)); glassShelves.forEach(sh => sh.visible = v); }, 1);
 optionBar('Main sink', [['Matte black - Nantucket T-PS36MB (Kevin)', 0x232323], ['White fireclay', 0xf7f7f3]], c => mat.ceramic.color.setHex(c));
-optionBar('Prep sink', [['18 stainless (as drawn)', [18, 16, false]], ['23 hammered copper - Sinkology Orwell (Kevin 10/25)', [23, 17.75, true]]],
-  ([w, d, cu]) => buildIslandTop(w, d, cu));
+optionBar('Prep sink', [['18 stainless', [18, 16, false]], ['23 hammered copper - Sinkology Orwell (Kevin 10/25)', [23, 17.75, true]]],
+  ([w, d, cu]) => buildIslandTop(w, d, cu), 1);
 optionBar('Hood', [['Custom paneled hood, walnut band (Ryan)', false], ['Cafe CBW36YIEWW6 matte white (Kevin ref.)', true]],
   v => { hoodCustom.visible = !v; hoodCafe.visible = v; });
 
