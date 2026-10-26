@@ -160,7 +160,7 @@ function woodTex(spec) {
   return [t, b];
 }
 const WOOD = {
-  walnut: woodTex({ base: [104, 68, 44], dark: [42, 26, 16], light: [150, 108, 74], board: [70, 70], vary: .25 }),
+  walnut: woodTex({ base: [84, 56, 38], dark: [36, 22, 14], light: [128, 90, 62], board: [70, 70], vary: .25 }),   // black walnut, oiled
   reclaimed: woodTex({ base: [158, 98, 70], dark: [70, 40, 26], light: [196, 140, 104], board: [60, 90], vary: .35, reclaimed: true }),
 };
 const soapTex = canvasTex(1024, 512, (g, w, h) => {        // soapstone: charcoal with faint veins
@@ -223,10 +223,19 @@ function face(X, Z, w, h, y, dir = 1, kind = 'door', kn = 'R') {
   }
   if (kn) {
     const kx = kind === 'drawer' ? X + w / 2 : (kn === 'R' ? X + w - 1.9 : X + 1.9);
-    const kz = kind === 'drawer' ? Z + h / 2 : (Z > 40 ? Z + 3 : Z + h - 3);
+    const kz = kind === 'drawer' ? Z + h / 2 : (Z >= 38 ? Z + 3 : Z + h - 3);   // tall / upper doors: knob 3 above the door bottom (reachable)
     knob(kx, y + dir * 1.05, kz);
   }
   return panel;
+}
+// Shaker end panel members 1/4 proud on a constant-X ('x') or constant-Y ('y') plane c, facing dir; spans a0..a1, z0..z1.
+// Ryan 10/26 standard - base: 2 stiles, 1-1/2 top, 5-1/2 bottom; upper: 2 all round; tall: 2 stiles / top, 5-1/2 bottom, 1-1/2 midrail at 33-1/4.
+function endPanel(axis, c, dir, a0, a1, z0, z1, st, top, bot, mid = null, mullions = []) {
+  const P = (a, z, len, h) => axis === 'x' ? B(dir > 0 ? c : c - .25, a, z, .25, len, h) : B(a, dir > 0 ? c : c - .25, z, len, .25, h);
+  P(a0, z0, st, z1 - z0); P(a1 - st, z0, st, z1 - z0);
+  for (const m of mullions) P(m, z0, st, z1 - z0);
+  P(a0 + st, z1 - top, a1 - a0 - 2 * st, top); P(a0 + st, z0, a1 - a0 - 2 * st, bot);
+  if (mid !== null) P(a0 + st, mid, a1 - a0 - 2 * st, 1.5);
 }
 function tag(text, X, Y, Z, size = .036) { tags.add(label(text, X, Y, Z, size, '#ffffff', 'rgba(31,74,110,.92)')); }
 function label(text, X, Y, Z, size = .03, color = '#14212b', bg = 'rgba(255,255,255,.9)', onTop = true) {
@@ -281,32 +290,39 @@ B(28.6, -2.5, .3, 35.8, 1.5, 79.4);
 face(32, 7, 29, 29, -1, 1, 'door', ''); face(32, 41, 29, 34, -1, 1, 'door', ''); knob(61.3, -.2, 37);
 PARENT = ceiling; EDGE = false; INFO = 'Existing ceiling beams - painted white. Spacer removal pending structural check.';
 for (const y of [42.7, 87.2, 134.8]) B(0, y, 95.5, 299, 5.6, 5.5, mat.beam);
+INFO = 'Existing cross beam (R3) - 3-1/2 wide, bottom 86-1/4, perpendicular to the main wall; dies into the #5 refrigerator top rail. Paint white.';
+B(136.6, 24, 86.25, 3.5, 153.5, 14.75, mat.beam);
 INFO = null;
 const ceil = B(-5, -5, 101, 309, 188.5, 2, mat.wall, { cast: false, parent: scene }); ceil.visible = false;
 
 // ---------- main wall cabinetry (A1) ----------
 PARENT = cabinetry; EDGE = true;
 const toe = (x0, x1, d = 21) => B(x0 + .5, 0, 0, x1 - x0 - 1, d, 4, mat.paint, { edges: false });   // toe kick in cabinet color
-INFO = '#4 Tall pantry 32 wide x 24 deep, to soffit at 95-1/2.';
+INFO = '#4 Tall pantry 32 wide x 24 deep, to soffit at 95-1/2. Upper door knobs 3 above the door bottom (41 AFF) so they can be reached (Ryan 10/26).';
 B(69, 0, 4, 32, 24, 91.5); toe(69, 101);
 [[5.5, 9.25], [16.25, 9.25], [27, 9.25]].forEach(([z, h]) => face(71, z, 28, h, 24, 1, 'drawer'));
 face(71, 38, 14, 54.5, 24, 1, 'door', 'R'); face(85, 38, 14, 54.5, 24, 1, 'door', 'L');
 INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). 35-3/4 W x 83-7/8 H x 24-3/4 D; cutout 36 x 84 x 25 - panel template TBD.';
 B(101, 0, 0, 40, 24, 95.5);
-face(103, 34.44, 36, 49.56, 24, 1, 'door', 'R');
+face(103, 34.44, 36, 49.56, 24, 1, 'door', ''); knob(137.1, 25.05, 41);   // fridge knob at 41 AFF, level with the pantry knobs (Ryan 10/26)
 face(103, 24, 36, 9.81, 24, 1, 'drawer', ''); face(103, 4, 36, 19.4, 24, 1, 'drawer', ''); pull(121, 25.5, 21, 18);
-face(103, 85.5, 18, 8.5, 24, 1, 'door', 'R'); face(121, 85.5, 18, 8.5, 24, 1, 'door', 'L');
+INFO = '#5 Solid top rail 84 to 95-1/2 above the refrigerator (R3) - the existing cross beam dies into it, so no doors / panel here (Ryan 10/26).';
+B(101.5, 24, 84, 39, .1, 11.5, mat.paint, { edges: false });
 INFO = '#6 Base 18-1/8, three drawers.';
 B(141, 0, 4, 18.125, 24, 30.75); toe(141, 159.125);
 [[27.75, 5.5], [15.875, 10.375], [5.5, 10.375]].forEach(([z, h]) => face(143, z, 14.125, h, 24, 1, 'drawer'));
 const glassPanels = [], glassShelves = [];
 function upper(x, w, num, kn = 'R') {
-  INFO = `${num} Upper ${frac(w)} wide x 12 deep x 41-1/2, stops at soffit. 1-1/2 bottom light rail with LED.` + (num !== '#8' ? ' OPTION (Kevin board): glass-front door at the sink.' : '');
+  INFO = `${num} Upper ${frac(w)} wide x 12 deep x 41-1/2, stops at soffit. 1-1/2 bottom light rail with LED.` + (num !== '#16' ? ' Glass-front door either side of the range (Ryan 10/26); option shaker.' : ' Solid shaker door (Ryan 10/26).');
   B(x, 0, 54, w, 12, 41.5); const pnl = face(x + 2, 56, w - 4, 36.5, 12, 1, 'door', kn);
-  if (num !== '#8') { glassPanels.push(pnl); for (const z of [67, 80]) { const sh = B(x + 1, 1, z, w - 2, 10.5, .75); sh.visible = false; glassShelves.push(sh); } }
+  if (num !== '#16') { glassPanels.push(pnl); for (const z of [67, 80]) { const sh = B(x + 1, 1, z, w - 2, 10.5, .75); sh.visible = false; glassShelves.push(sh); } }
   B(x, 10.5, 52.5, w, 2.25, 1.5); B(x + 1, 1, 53.9, w - 2, 9, .1, mat.led, { cast: false, edges: false });
 }
-upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10'); upper(284, 15, '#16', 'L');
+upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10', 'L'); upper(284, 15, '#16', 'L');   // #10 hinged right (Ryan 10/26)
+INFO = 'Upper end panels at the window - 2 stiles and 2 rails (Ryan 10/26).';
+endPanel('x', 213.25, 1, 0, 12, 54, 95.5, 2, 2, 2); endPanel('x', 284, -1, 0, 12, 54, 95.5, 2, 2, 2);
+INFO = '#4 Tall end panel - 2 stiles and top rail, 5-1/2 bottom rail, 1-1/2 midrail at base height giving a 27-3/4 bottom panel (Ryan 10/26).';
+endPanel('x', 69, -1, 0, 24, 0, 95.5, 2, 2, 5.5, 33.25);
 INFO = 'End stiles run to the floor on all cabinet ends (Ryan 10/25).';
 for (const x of [69, 99, 141, 157.125, 195.125]) B(x, 0, 0, 2, 24, 4);
 INFO = 'Range: Cafe C2Y366P2TS1 36 dual-fuel (Kevin 10/25) - 31-1/8 deep with handle, 29-3/8 without. Hood bottom 30 above range top. Gas + 240V/30A.';
@@ -355,11 +371,11 @@ for (let i = 0; i < 3; i++) {
   scene.add(s, s.target);
 }
 // #7 sink run 195.125..299 (103-7/8)
-INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash 16-1/4 | 36 apron sink (on window CL) | 1-1/2 stile | 24 DW | 2 stile | 5 recessed filler.';
-B(195.125, 0, 4, 72.875, 24, 30.75); toe(195.125, 268); B(266.5, 0, 0, 1.5, 24, 4);   // sink/DW stile to the floor
+INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash pullout 16-1/4 | 36 apron sink (on window CL) | 2 stile | 24 DW | 2 stile | 4-1/2 recessed filler (Ryan 10/26).';
+B(195.125, 0, 4, 73.375, 24, 30.75); toe(195.125, 266.5); B(266.5, 0, 0, 2, 24, 4);   // 2 sink/DW stile to the floor, matches the stile right of the DW
 [[27.75, 5.5], [16.625, 10.875], [5.5, 10.875]].forEach(([z, h]) => face(197.125, z, 14.125, h, 24, 1, 'drawer'));
-INFO = '#7 Trash pullout 16-1/4 opening (R3 Kessebohmer double 36 qt - confirm fit).';
-face(212.75, 27.75, 16.25, 5.5, 24, 1, 'drawer'); face(212.75, 5.5, 16.25, 20.75, 24, 1, 'door', 'R');
+INFO = '#7 Trash pullout 16-1/4 opening - pullout drawer front, never a door (R3 Kessebohmer double 36 qt - confirm fit).';
+face(212.75, 27.75, 16.25, 5.5, 24, 1, 'drawer'); face(212.75, 5.5, 16.25, 20.75, 24, 1, 'drawer');   // trash is always a pullout
 INFO = '#7 Sink base 39 between stiles - Nantucket Sinks T-PS36MB 36 matte black fireclay apron sink (Kevin 10/25), 36 x 19, 10 apron, centered on window CL 248-1/2. Maker recommends 39 min base: met.';
 mat.ceramic = M(0x232323, .75);   // matte black fireclay (option: white)
 face(230.5, 5.5, 18, 18, 24, 1, 'door', 'R'); face(248.5, 5.5, 18, 18, 24, 1, 'door', 'L');
@@ -368,11 +384,11 @@ B(230.5, 6, 24.75, 36, 19, .6, mat.ceramic); B(230.5, 6, 24.75, .9, 19.5, 10, ma
 B(230.5, 6, 24.75, 36, .9, 10, mat.ceramic); B(230.5, 24.6, 24.75, 36, 1, 10, mat.ceramic);
 EDGE = true;
 INFO = 'Dishwasher: Cafe CDT858I6ZII 24 panel-ready, custom panel + handle (Kevin 10/25). Opening 24 W x 33-1/2 H x 24 D; panel template TBD.';
-B(268, 0, 4, 24, 23.9, 30.75, mat.reveal, { edges: false }); face(268, 4, 24, 30.75, 24, 1, 'door', ''); pull(280, 25.5, 31.5, 12);
+B(268.5, 0, 4, 24, 23.9, 30.75, mat.reveal, { edges: false }); face(268.5, 4, 24, 30.75, 24, 1, 'door', ''); pull(280.5, 25.5, 31.5, 12);
 INFO = 'NEW 10/25: 2 face stile right of the DW, flush with the face frame, floor to counter.';
-B(292, 23, 0, 2, 1, 34.75);
-INFO = 'NEW 10/25: 5 filler recessed 1 behind the 2 stile face, to the floor with baseboard, scribed to the end wall.';
-B(293.25, 22.25, 0, 5.75, .75, 34.75); B(294, 23, 0, 5, .5, 4);
+B(292.5, 23, 0, 2, 1, 34.75);
+INFO = '4-1/2 filler recessed 1 behind the 2 stile face, to the floor with baseboard, scribed to the end wall.';
+B(293.75, 22.25, 0, 5.25, .75, 34.75); B(294.5, 23, 0, 4.5, .5, 4);
 INFO = 'Perimeter countertops: white quartzite (Kevin 10/25). Edge / 4 splash TBD.';
 B(141, 0, 34.75, 18.125, 25, 1.25, mat.stone); B(141, 0, 36, 18.125, .75, 4, mat.stone);
 EDGE = false;
@@ -400,7 +416,7 @@ B(0, 17.75, 0, 23.5, 24, 34.5, mat.reveal, { edges: false }); faceX(17.75, 0, 24
 INFO = '#3 Paneled 15 ice maker (panel-ready, model TBD).';
 B(0, 1.25, 0, 23.5, 15, 34.5, mat.reveal, { edges: false }); faceX(1.25, 0, 15, 34.5, -1);
 INFO = '#3 Exposed end - shaker panel, runs to the floor.';
-B(0, 43, 0, 24, .25, 5.5); B(0, 43, 31.5, 24, .25, 3); B(0, 43, 5.5, 3, .25, 26); B(21, 43, 5.5, 3, .25, 26);   // typical end panel
+endPanel('y', 43, 1, 0, 24, 0, 34.5, 2, 1.5, 5.5);   // base end standard
 INFO = '#3 Walnut top (Ryan 10/25: natural wood walnut; option reclaimed red oak).';
 B(0, 0, 34.75, 25, 44, 1.25, mat.nat);
 for (const z of [54, 69.25]) B(0, 0, z, 11, 43, 1.75, mat.nat);
@@ -412,9 +428,9 @@ for (const [x, y, w, d] of [[0, 88.5, 22, 33.5], [0, 122, 22, 22], [22, 121, 54,
 B(22, 91, 8.5, .4, 28.5, 9);                                     // #2 front panel (A2)
 for (const y of [88.5, 121]) B(19, y, 0, 3, 1, 7);                 // #2 outside stiles to the floor
 for (const x of [22, 75]) B(x, 121, 0, 1, 3, 7);                   // #1 outside stiles to the floor
-INFO = 'Bench exposed ends - typical end panel to the floor: 3 stiles, 5-1/2 bottom rail, 3 top rail (Ryan 10/25).';
-B(0, 88.25, 0, 22, .25, 5.5); B(0, 88.25, 16, 22, .25, 3); B(0, 88.25, 5.5, 3, .25, 10.5); B(19, 88.25, 5.5, 3, .25, 10.5); B(0, 88.5, 0, 22, .5, 7);   // #2 end (faces the room)
-B(76, 121, 0, .25, 23, 5.5); B(76, 121, 16, .25, 23, 3); B(76, 121, 5.5, .25, 3, 10.5); B(76, 141, 5.5, .25, 3, 10.5); B(75.5, 121, 0, .5, 23, 7);   // #1 end
+INFO = 'Bench exposed ends - base end panel standard to the floor: 2 stiles, 1-1/2 top rail, 5-1/2 bottom rail (Ryan 10/26).';
+endPanel('y', 88.5, -1, 0, 22, 0, 19, 2, 1.5, 5.5); B(0, 88.5, 0, 22, .5, 7);   // #2 end (faces the room)
+endPanel('x', 76, 1, 121, 144, 0, 19, 2, 1.5, 5.5); B(75.5, 121, 0, .5, 23, 7);   // #1 end
 for (let i = 0; i < 2; i++) B(24.5 + i * 26, 120.6, 8.5, 24, .4, 9); // #1 front panels
 
 // ---------- dining table at the corner bench (decorative, size TBD) ----------
@@ -454,22 +470,23 @@ B(139.6, 71.5, 0, 82, 21, 4, mat.paint, { edges: false });
 // Frame members (3 stiles, 3 top rail, 6-1/2 bottom rail to floor) stand 1/4 proud of a flat recessed panel.
 function endX(x0, x1, y0, y1, dir) {                       // framed end panel on a constant-X face
   B(x0, y0, 0, x1 - x0, y1 - y0, 34.75);
-  const fx = dir > 0 ? x1 : x0 - .25, d = y1 - y0;
-  B(fx, y0, 0, .25, 3, 34.75); B(fx, y1 - 3, 0, .25, 3, 34.75);
-  B(fx, y0 + 3, 31.75, .25, d - 6, 3); B(fx, y0 + 3, 0, .25, d - 6, 5.5);   // 5-1/2 bottom rail, typical
+  endPanel('x', dir > 0 ? x1 : x0, dir, y0, y1, 0, 34.75, 2, 1.5, 5.5);   // base end standard (Ryan 10/26)
 }
-INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, built 1-1/2 thick so the copper sink can sit 1-1/2 from the end (Kevin 10/25). Panel 35-1/2 x 25-1/4.';
+INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, built 1-1/2 thick so the copper sink can sit 1-1/2 from the end (Kevin 10/25). Panel 37-1/2 x 27-3/4 (2 stiles, 1-1/2 top, 5-1/2 bottom rail).';
 endX(137.6, 139.1, 68.5, 110, -1);
-INFO = '#13 End panel (seating end) - framed on the 28-1/2 cabinet, panel 22-1/2 x 25-1/4 (R3 1.4). Knee space open to the leg.';
+INFO = '#13 End panel (seating end) - framed on the 28-1/2 cabinet, panel 24-1/2 x 27-3/4 (Ryan 10/26 standard). Knee space open to the leg.';
 endX(222.1, 224.85, 68.5, 97, 1);
-INFO = '#12 Back seating panel - 83 framed, three panels 24-5/8 / 24-3/4 / 24-5/8 x 25-1/4, 6-1/2 bottom rail.';
+INFO = '#12 Back seating panel - 83 framed: 2 stiles and mullions, 1-1/2 top rail, 5-1/2 bottom rail, three 25 x 27-3/4 panels (Ryan 10/26).';
 B(139.1, 94, 0, 83, 3, 34.75);
-for (const [x, w] of [[139.1, 3], [166.725, 3], [194.475, 3]]) B(x, 97, 0, w, .25, 34.75);
-B(142.1, 97, 31.75, 80, .25, 3); B(142.1, 97, 0, 80, .25, 5.5);
+endPanel('y', 97, 1, 139.1, 222.1, 0, 34.75, 2, 1.5, 5.5, null, [166.1, 193.1]);   // 2 stiles / mullions, three equal 25 panels
 INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner, 3 apron between (Ryan 10/25).';
 for (const y of [69, 106.5]) { B(234.6, y, 4, 3.5, 3.5, 30.75); B(234.1, y - .5, 0, 4.5, 4.5, 4); }
 INFO = 'Island apron - 3 tall between the two legs at the #13 end (R3 CV).';
 B(237.35, 72.5, 31.75, .75, 34, 3);
+INFO = 'Island apron - 3 tall border that catches the top: back side from the #15 end panel to the leg (Ryan 10/26).';
+B(139.1, 109.25, 31.75, 95.5, .75, 3);
+INFO = 'Island apron - 3 tall, work side from the #13 end panel to the leg (Ryan 10/26).';
+B(224.85, 69, 31.75, 9.75, .75, 3);
 INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (illustrative). Option B: walnut with integrated soapstone (toggle).';
 // Island top + prep sink. Rebuilt when the prep-sink option changes.
 // Default: 18 stainless (as drawn). Option: Kevin's Sinkology Orwell SK201-23AC 23 hammered copper (23 x 17-3/4).
@@ -486,11 +503,14 @@ function buildIslandTop(sw, sd, copper) {
   };
   PARENT = topStone; INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (perimeter is white quartzite per Kevin).'; cut(mat.stone);
   PARENT = topSW;
-  INFO = 'Island top (Kevin 10/25 board): black walnut, 2 in, sitting on a soapstone base, with a 42 x 24 soapstone inset at the prep-sink end, open to the end and front edges.';
+  INFO = 'Island top (Kevin 10/25 board): black walnut, 2 in, let 1-1/4 into the soapstone (no soapstone shows under the walnut; walnut 3/4 proud), with a 42 x 24 soapstone inset at the prep-sink end, open to the end and front edges.';
   const x1 = 137.6 + 42, y1 = 67.5 + 24, W = mat.islandWalnut;
-  cut(mat.soap);
-  B(x1, 67.5, 36, 238.6 - x1, 43.5, 2, W); B(137.6, y1, 36, x1 - 137.6, 111 - y1, 2, W);
-  outline(x1, 67.5, 36, 238.6 - x1, 43.5, 2); outline(137.6, y1, 36, x1 - 137.6, 111 - y1, 2);
+  const SP = mat.soap;                                     // soapstone only in the 42 x 24 inset; walnut let 1-1/4 into it (Ryan 10/26)
+  B(137.6, 67.5, 34.75, sx - 137.6, 24, 1.25, SP); B(sx + sw, 67.5, 34.75, x1 - sx - sw, 24, 1.25, SP);
+  B(sx, 67.5, 34.75, sw, sy0 - 67.5, 1.25, SP); B(sx, sy1, 34.75, sw, y1 - sy1, 1.25, SP);
+  outline(137.6, 67.5, 34.75, 42, 24, 1.25); outline(sx, sy0, 34.75, sw, sd, 1.25);
+  B(x1, 67.5, 34.75, 238.6 - x1, 43.5, 2, W); B(137.6, y1, 34.75, x1 - 137.6, 111 - y1, 2, W);
+  outline(x1, 67.5, 34.75, 238.6 - x1, 43.5, 2); outline(137.6, y1, 34.75, x1 - 137.6, 111 - y1, 2);
   INFO = 'Soapstone inset 42 x 24 (Kevin 10/25): copper prep sink 1-1/2 from the end and front edges, sloped drainboard to the left of the sink, faucet behind. Stone fabricator to approve edge support.';
   for (let i = 0; i < 6; i++) {
     const gl = x1 - (sx + sw) - 4, g = new THREE.Mesh(new THREE.BoxGeometry(gl, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 2 + gl / 2, 36.005, sy0 + 2 + i * (sd - 4) / 5);
@@ -522,19 +542,19 @@ for (const x of [158, 182, 206]) {
 const lighting = new THREE.Group(), cableLights = new THREE.Group(); scene.add(lighting, cableLights);
 {
   const nickelM = M(0xc9c7c0, .3, .9), bronze = M(0x6b4f33, .35, .8), shadeMat = M(0xf4f1ea, .55, 0, { side: THREE.DoubleSide }), cord = M(0x2b2622, .8);
-  const CINFO = 'Low-voltage tensioned cable lighting (like the reference photo): two taut cables ~4 apart run in each bay between the beams, parallel to them, with adjustable heads. Standoffs at both end walls, transformer on the wall - no joist cavity needed. Example systems: Tech Lighting Kable Lite, WAC. Head count / layout TBD with electrician.';
+  const CINFO = 'Low-voltage tensioned cable lighting (like the reference photo): two taut cables ~4 apart run in each bay between the beams, parallel to them, with adjustable heads. Standoffs at both end walls and at the cross beam (two spans), transformer on the wall - no joist cavity needed. Example systems: Tech Lighting Kable Lite, WAC. Head count / layout TBD with electrician.';
   const add = (g, m) => { m.castShadow = false; m.userData.info = CINFO; g.add(m); return m; };
   const xa = 4, xb = 295, z = 98;                                  // cable height, run from the entry wall to the end wall
   const bays = [[28.4, 4], [67.75, 6], [113.8, 6]];                // [bay center Y (between beams), heads]
   for (const [yc, n] of bays) {
-    for (const dy of [-2, 2]) {
-      const c = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, xb - xa, 6), nickelM); c.rotation.z = Math.PI / 2;
-      c.position.set((xa + xb) / 2, z, yc + dy); add(cableLights, c);
-      for (const x of [xa, xb]) { const so = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 101 - z, 10), nickelM); so.position.set(x, (101 + z) / 2, yc + dy); add(cableLights, so); }
+    for (const dy of [-2, 2]) for (const [x0, x1] of [[xa, 136.6], [140.1, xb]]) {   // two spans: the cross beam (X 136.6-140.1) breaks the run
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, x1 - x0, 6), nickelM); c.rotation.z = Math.PI / 2;
+      c.position.set((x0 + x1) / 2, z, yc + dy); add(cableLights, c);
+      for (const x of [x0, x1]) { const so = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 101 - z, 10), nickelM); so.position.set(x, (101 + z) / 2, yc + dy); add(cableLights, so); }
     }
     const tr = new THREE.Mesh(new THREE.BoxGeometry(1.5, 5, 7), nickelM); tr.position.set(298.2, 92, yc); add(cableLights, tr);
     for (let i = 0; i < n; i++) {
-      const x = xa + 30 + i * ((xb - xa - 60) / (n - 1));
+      let x = xa + 30 + i * ((xb - xa - 60) / (n - 1)); if (x > 128 && x < 149) x = x < 138.35 ? 128 : 149;   // keep heads clear of the cross beam
       const bar = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, 4.4), nickelM); bar.position.set(x, z - .1, yc); add(cableLights, bar);
       const stem = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 2.6, 6), nickelM); stem.position.set(x, z - 1.4, yc); add(cableLights, stem);
       const head = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.15, 2.4, 16), nickelM); head.position.set(x, z - 3.6, yc); head.rotation.x = (i % 2 ? .25 : -.25); add(cableLights, head);
@@ -577,15 +597,15 @@ for (const [t, X] of [['#11', 169], ['#14', 209]]) islandTags.add(label(t, X, 64
 
 // ---------- dimensions ----------
 const dz = 1, dy = 30;
-const run = [[195.125, 230.5], [230.5, 266.5], [266.5, 268], [268, 292], [292, 294], [294, 299]];
+const run = [[195.125, 230.5], [230.5, 266.5], [266.5, 268.5], [268.5, 292.5], [292.5, 294.5], [294.5, 299]];
 run.forEach(([a, b], i) => dim([a, dy + (i % 2) * 6, dz], [b, dy + (i % 2) * 6, dz]));
 dim([195.125, 44, dz], [299, 44, dz], '#7 run 103 7/8');
 dim([248.5, 4, 88], [299, 4, 88], 'window / sink CL to wall 50 1/2', dims, undefined);
 dim([210, 25, dz], [210, 67.5, dz], 'aisle 42 1/2', dims, undefined, [1.5, 0, 0]);
 dim([0, 160, dz], [299, 160, dz], '299 main wall', dims, undefined);
 dim([193, 1, 66], [193, 1, 36], 'hood 30 above range', dims, undefined, [1.5, 0, 0]);
-dim([292, 25, 14], [294, 25, 14], '2 stile', dims, undefined, [0, 0, 1.5]);
-dim([294, 24, 9], [299, 24, 9], '5 filler rec. 1', dims, undefined, [0, 0, 1.5]);
+dim([292.5, 25, 14], [294.5, 25, 14], '2 stile', dims, undefined, [0, 0, 1.5]);
+dim([294.5, 24, 9], [299, 24, 9], '4 1/2 filler rec. 1', dims, undefined, [0, 0, 1.5]);
 const gap = new THREE.Group(); dims.add(gap);
 const gapNow = new THREE.Group(); gap.add(gapNow); dim([238.6, 89, dz], [299, 89, dz], 'island end to wall ~60 3/8', gapNow, undefined);
 const gapShift = new THREE.Group(); gap.add(gapShift); dim([263.35, 89, dz], [299, 89, dz], 'shifted: 35 5/8 to wall', gapShift, undefined); gapShift.visible = false;
@@ -603,6 +623,7 @@ const fill = new THREE.DirectionalLight(0xe8eefc, .55); fill.position.set(-120, 
 const VIEWS = {
   'Overview': [[40, 175, 300], [170, 25, 70]],
   'Main wall': [[150, 58, 190], [150, 52, 0]],
+  'Pantry, fridge & beam': [[165, 52, 105], [110, 70, 12]],
   'Sink & DW end': [[258, 46, 64], [282, 28, 18]],
   'Filler detail': [[268, 30, 58], [294, 17, 22]],
   'Range & hood': [[177, 58, 100], [177, 68, 0]],
@@ -638,7 +659,6 @@ const toggles = {
   'Cable lighting (between beams)': { on: true, f: v => cableLights.visible = v },
   'Island pendants': { on: true, f: v => lighting.visible = v },
   'Island top: walnut + soapstone inset (Kevin; off = quartzite)': { on: true, f: v => { topSW.visible = v; topStone.visible = !v; } },
-  'Hood band / shelves / #3 top: reclaimed red oak': { on: false, f: v => { const w = WOOD[v ? 'reclaimed' : 'walnut']; mat.nat.map = w[0]; mat.nat.bumpMap = w[1]; mat.nat.roughness = v ? .7 : .5; mat.nat.needsUpdate = true; } },
 };
 toggles.Beams = toggles['Beams & soffit area'];
 const tbar = document.getElementById('toggles');
@@ -681,13 +701,15 @@ optionBar('Cabinet color', [['White Dove (assumed)', 0xefebe0], ['BM Chantilly L
   c => { mat.paint.color.setHex(c); if (islandColor === null) mat.islandPaint.color.setHex(c); });
 optionBar('Hardware', [['Nickel', [0xb9b6ad, .28, .9]], ['Brushed bronze (Kevin 9/24)', [0x8a6a44, .38, .85]], ['Matte black (Kevin 10/25)', [0x1d1d1d, .6, .3]]],
   ([c, r, m]) => { mat.hw.color.setHex(c); mat.hw.roughness = r; mat.hw.metalness = m; }, 2);
-optionBar('Uppers at sink (#10, #16)', [['Shaker panel', false], ['Glass front (Kevin 10/25)', true]],
+optionBar('Uppers beside range (#8, #10)', [['Shaker panel', false], ['Glass front (Ryan 10/26)', true]],
   v => { glassPanels.forEach(p => p && (p.material = v ? mat.glassDoor : mat.paint)); glassShelves.forEach(sh => sh.visible = v); }, 1);
 optionBar('Main sink', [['Matte black - Nantucket T-PS36MB (Kevin)', 0x232323], ['White fireclay', 0xf7f7f3]], c => mat.ceramic.color.setHex(c));
 optionBar('Prep sink', [['18 stainless', [18, 16, false]], ['23 hammered copper - Sinkology Orwell (Kevin 10/25)', [23, 17.75, true]]],
   ([w, d, cu]) => buildIslandTop(w, d, cu), 1);
 optionBar('Hood', [['Custom paneled hood, walnut band (Ryan)', false], ['Cafe CBW36YIEWW6 matte white (Kevin ref.)', true]],
   v => { hoodCustom.visible = !v; hoodCafe.visible = v; });
+optionBar('Natural wood: hood band, #3 shelves + drop-zone counter', [['Black walnut (Ryan)', 'walnut'], ['Reclaimed red oak', 'reclaimed']],
+  k => { const w = WOOD[k]; mat.nat.map = w[0]; mat.nat.bumpMap = w[1]; mat.nat.roughness = k === 'reclaimed' ? .7 : .5; mat.nat.needsUpdate = true; });
 
 // ---------- picking ----------
 const ray = new THREE.Raycaster(); ray.params.Line.threshold = 0; const info = document.getElementById('info');
