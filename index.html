@@ -406,12 +406,12 @@ B(0, 0, 34.75, 25, 44, 1.25, mat.nat);
 for (const z of [54, 69.25]) B(0, 0, z, 11, 43, 1.75, mat.nat);
 INFO = '#1 / #2 Mudroom bench - shaker panels, 7 toe, 2 cushion (no shiplap).';
 for (const [x, y, w, d] of [[0, 88.5, 22, 33.5], [0, 122, 22, 22], [22, 121, 54, 23]]) {
-  B(x, y, 7, w, d, 12); B(x, y + 1, 0, w - (x ? 0 : 1), d - (x ? 1 : 2), 7, mat.paint, { edges: false });
+  B(x, y, 7, w, d, 12); B(x, y + (x ? 3 : 1), 0, w - (x ? 0 : 3), d - (x ? 3 : 2), 7, mat.paint, { edges: false });   // 7 tall toe, recessed 3
   B(x, y, 19, w, d, 1.5); B(x, y, 20.5, w, d, 2, mat.cushion);
 }
 B(22, 91, 8.5, .4, 28.5, 9);                                     // #2 front panel (A2)
-for (const y of [88.5, 121]) B(21, y, 0, 1, 1, 7);                 // #2 outside stiles to the floor
-for (const x of [22, 75]) B(x, 121, 0, 1, 1, 7);                   // #1 outside stiles to the floor
+for (const y of [88.5, 121]) B(19, y, 0, 3, 1, 7);                 // #2 outside stiles to the floor
+for (const x of [22, 75]) B(x, 121, 0, 1, 3, 7);                   // #1 outside stiles to the floor
 INFO = 'Bench exposed ends - typical end panel to the floor: 3 stiles, 5-1/2 bottom rail, 3 top rail (Ryan 10/25).';
 B(0, 88.25, 0, 22, .25, 5.5); B(0, 88.25, 16, 22, .25, 3); B(0, 88.25, 5.5, 3, .25, 10.5); B(19, 88.25, 5.5, 3, .25, 10.5); B(0, 88.5, 0, 22, .5, 7);   // #2 end (faces the room)
 B(76, 121, 0, .25, 23, 5.5); B(76, 121, 16, .25, 23, 3); B(76, 121, 5.5, .25, 3, 10.5); B(76, 141, 5.5, .25, 3, 10.5); B(75.5, 121, 0, .5, 23, 7);   // #1 end
