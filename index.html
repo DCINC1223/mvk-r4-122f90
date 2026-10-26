@@ -356,7 +356,7 @@ for (let i = 0; i < 3; i++) {
 }
 // #7 sink run 195.125..299 (103-7/8)
 INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash 16-1/4 | 36 apron sink (on window CL) | 1-1/2 stile | 24 DW | 2 stile | 5 recessed filler.';
-B(195.125, 0, 4, 72.875, 24, 30.75); toe(195.125, 268);
+B(195.125, 0, 4, 72.875, 24, 30.75); toe(195.125, 268); B(266.5, 0, 0, 1.5, 24, 4);   // sink/DW stile to the floor
 [[27.75, 5.5], [16.625, 10.875], [5.5, 10.875]].forEach(([z, h]) => face(197.125, z, 14.125, h, 24, 1, 'drawer'));
 INFO = '#7 Trash pullout 16-1/4 opening (R3 Kessebohmer double 36 qt - confirm fit).';
 face(212.75, 27.75, 16.25, 5.5, 24, 1, 'drawer'); face(212.75, 5.5, 16.25, 20.75, 24, 1, 'door', 'R');
@@ -373,7 +373,7 @@ INFO = 'NEW 10/25: 2 face stile right of the DW, flush with the face frame, floo
 B(292, 23, 0, 2, 1, 34.75);
 INFO = 'NEW 10/25: 5 filler recessed 1 behind the 2 stile face, to the floor with baseboard, scribed to the end wall.';
 B(293.25, 22.25, 0, 5.75, .75, 34.75); B(294, 23, 0, 5, .5, 4);
-INFO = 'Perimeter countertops HELD - stone / edge not selected (illustrative). 4 splash.';
+INFO = 'Perimeter countertops: white quartzite (Kevin 10/25). Edge / 4 splash TBD.';
 B(141, 0, 34.75, 18.125, 25, 1.25, mat.stone); B(141, 0, 36, 18.125, .75, 4, mat.stone);
 EDGE = false;
 B(195.125, 0, 34.75, 35.375, 25, 1.25, mat.stone); B(266.5, 0, 34.75, 32.5, 25, 1.25, mat.stone); B(230.5, 0, 34.75, 36, 2.5, 1.25, mat.stone);
@@ -463,7 +463,7 @@ INFO = '#12 Back seating panel - 83 framed, three panels 24-5/8 / 24-3/4 / 24-5/
 B(139.1, 94, 0, 83, 3, 34.75);
 for (const [x, w] of [[139.1, 3], [166.725, 3], [194.475, 3]]) B(x, 97, 0, w, .25, 34.75);
 B(142.1, 97, 31.75, 80, .25, 3); B(142.1, 97, 0, 80, .25, 6.5);
-INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner (R3 1.4). Verify leg detail.';
+INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner, 3 apron between (Ryan 10/25).';
 for (const y of [69, 106.5]) { B(234.6, y, 4, 3.5, 3.5, 30.75); B(234.1, y - .5, 0, 4.5, 4.5, 4); }
 INFO = 'Island apron - 3 tall between the two legs at the #13 end (R3 CV).';
 B(237.35, 72.5, 31.75, .75, 34, 3);
@@ -491,7 +491,7 @@ function buildIslandTop(sw, sd, copper) {
   INFO = 'Soapstone inset 42 x 24 (Kevin 10/25): copper prep sink 1-1/2 from the end and front edges, sloped drainboard to the left of the sink, faucet behind. Stone fabricator to approve edge support.';
   for (let i = 0; i < 6; i++) {
     const gl = x1 - (sx + sw) - 4, g = new THREE.Mesh(new THREE.BoxGeometry(gl, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 2 + gl / 2, 36.005, sy0 + 2 + i * (sd - 4) / 5);
-    g.rotation.z = -.012; g.userData.info = INFO; topSW.add(g); }
+    g.rotation.z = .012; g.userData.info = INFO; topSW.add(g); }   // falls toward the sink
   PARENT = prep;
   INFO = copper ? 'Prep sink (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep. #11 sink bay 25-1/2 (A3). 7 from the island end: Kevin ~1-1/2 target not buildable over the 4-1/2 framed end.'
                 : 'OPTION: 18 stainless prep sink. Drawn: Kevin 23 copper Orwell.';
@@ -555,15 +555,15 @@ const lighting = new THREE.Group(), cableLights = new THREE.Group(); scene.add(l
 mat.islandPaint = mat.paint.clone();
 island.traverse(o => { if (o.material === mat.paint) o.material = mat.islandPaint; });
 // Kevin's requested shift (open): ghost outline + toggle
-PARENT = scene; INFO = 'Kevin request (open): island shifted 24-3/4 toward the end wall to center between range and sink. Leaves ~35-3/4 to the end wall. Ryan to decide.';
+PARENT = scene; INFO = 'Kevin request (open): island shifted 24-3/4 toward the end wall to center between range and sink. Leaves 35-5/8 to the end wall.';
 const ghost = new THREE.Group(); scene.add(ghost); groups.ghost = ghost;
 { const g = new THREE.BoxGeometry(101, 36, 43.5), l = new THREE.LineSegments(new THREE.EdgesGeometry(g),
     new THREE.LineDashedMaterial({ color: 0x1f6fb5, dashSize: 3, gapSize: 2 }));
-  l.computeLineDistances(); l.position.set(137.6 + 24.7 + 50.5, 18, 67.5 + 21.75); ghost.add(l);
+  l.computeLineDistances(); l.position.set(137.6 + 24.75 + 50.5, 18, 67.5 + 21.75); ghost.add(l);
   const m = new THREE.Mesh(g, mat.clear); m.position.copy(l.position); m.userData.info = INFO; ghost.add(m);
-  ghost.add(label("Kevin's shift option", 137.6 + 24.7 + 50.5, 89, 40, .032, '#ffffff', 'rgba(31,111,181,.9)')); }
+  ghost.add(label("Kevin's shift option", 137.6 + 24.75 + 50.5, 89, 40, .032, '#ffffff', 'rgba(31,111,181,.9)')); }
 ghost.visible = false;
-const SHIFT = 24.7;
+const SHIFT = 24.75;
 
 // ---------- cabinet tags ----------
 for (const [t, X, Y, Z] of [['#1', 49, 132, 26], ['#2', 11, 105, 26], ['#3', 12, 21.5, 42], ['#4', 85, 26, 99], ['#5', 121, 26, 99],
@@ -585,7 +585,7 @@ dim([292, 25, 14], [294, 25, 14], '2 stile', dims, undefined, [0, 0, 1.5]);
 dim([294, 24, 9], [299, 24, 9], '5 filler rec. 1', dims, undefined, [0, 0, 1.5]);
 const gap = new THREE.Group(); dims.add(gap);
 const gapNow = new THREE.Group(); gap.add(gapNow); dim([238.6, 89, dz], [299, 89, dz], 'island end to wall ~60 3/8', gapNow, undefined);
-const gapShift = new THREE.Group(); gap.add(gapShift); dim([263.3, 89, dz], [299, 89, dz], 'shifted: ~35 3/4 to wall', gapShift, undefined); gapShift.visible = false;
+const gapShift = new THREE.Group(); gap.add(gapShift); dim([263.35, 89, dz], [299, 89, dz], 'shifted: 35 5/8 to wall', gapShift, undefined); gapShift.visible = false;
 
 // ---------- lights ----------
 scene.add(new THREE.HemisphereLight(0xf4f1ea, 0x9a8f80, .75));
