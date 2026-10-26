@@ -455,46 +455,52 @@ EDGE = true;
 
 // ---------- island (A3), placed per P1 ----------
 PARENT = island;
-const IX = 222.1;                                        // X of the #14 end of the cabinets; local u runs toward lower X
-const U = (u, w) => IX - u - w;
-INFO = '#14 Island 26 - Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H; 15.1 open-drawer clearance.';
-B(196.1, 68.5, 4, 26, 24, 30.75); face(197.1, 5.5, 24, 12, 68.5, -1, 'drawer');
-EDGE = false; B(197.1, 67.85, 18.5, 24, .65, 15, mat.steel); B(198.6, 67.7, 21, 21, .2, 10, mat.black); pull(209.1, 67.3, 31, 18); EDGE = true;
-INFO = '#11 Island 57 - openings 21-1/2 + 29; 23 copper prep sink bay at the end, sink 1-1/2 from the island end (Kevin 10/25); 4 doors, 1 drawer, false front.';
-B(139.1, 68.5, 4, 57, 24, 30.75);
-face(U(28, 21.5), 27.75, 21.5, 5.5, 68.5, -1, 'drawer'); face(U(52.5, 29), 27.75, 29, 5.5, 68.5, -1, 'drawer');
-[[28, 10.75, 'L'], [38.75, 10.75, 'R'], [52.5, 14.5, 'L'], [67, 14.5, 'R']].forEach(([u, w, k]) => face(U(u, w), 5.5, w, 20.75, 68.5, -1, 'door', k));
-INFO = 'Island toe / legs / back panels per R3. Seating overhang 14 on the back side.';
-B(139.6, 71.5, 0, 82, 21, 4, mat.paint, { edges: false });
-// R3 sheet 1.4 detailing: framed end panels #13 / #15, framed back panel #12, one leg at the seating corner.
-// Frame members (3 stiles, 3 top rail, 6-1/2 bottom rail to floor) stand 1/4 proud of a flat recessed panel.
-function endX(x0, x1, y0, y1, dir) {                       // framed end panel on a constant-X face
+// Island per Ryan's Cabinet Vision job (R3 1.4) - Ryan 10/26: match CV exactly.
+// Ends built up 3-3/4 (3 proud of the cabinets), 3 stiles / 3 top rail / bottom rail to 6-1/2, 3-1/2 x 3/4 baseboard
+// wrapping the island panels, 3 square legs on 4-1/2 blocks, 3 aprons continuous with the top rails.
+INFO = '#14 Island 26 - Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H.';
+B(195.6, 68.5, 4, 26, 24, 30.75); face(197.6, 5.5, 24, 12, 68.5, -1, 'drawer');
+EDGE = false; B(197.6, 67.85, 18.5, 24, .65, 15, mat.steel); B(199.1, 67.7, 21, 21, .2, 10, mat.black); pull(209.6, 67.3, 31, 18); EDGE = true;
+INFO = '#11 Island 54 (CV) - sink bay 24 (false front, 2 doors) at the #15 end with the 23 copper prep sink centered on it; bay 24-1/2 (drawer, 2 doors).';
+B(141.6, 68.5, 4, 54, 24, 30.75);
+face(169.1, 27.75, 24.5, 5.5, 68.5, -1, 'drawer'); face(143.6, 27.75, 24, 5.5, 68.5, -1, 'slab', ''); // false front
+[[169.1, 12.25, 'L'], [181.35, 12.25, 'R'], [143.6, 12, 'L'], [155.6, 12, 'R']].forEach(([x, w, k]) => face(x, 5.5, w, 20.75, 68.5, -1, 'door', k));
+INFO = 'Island toe - 4 recessed, cabinet color.';
+B(142.1, 71.5, 0, 79, 21, 4, mat.paint, { edges: false });
+function endX(x0, x1, y0, y1, dir) {                       // CV island end: 3 stiles, 3 top rail, bottom rail to 6-1/2
   B(x0, y0, 0, x1 - x0, y1 - y0, 34.75);
-  endPanel('x', dir > 0 ? x1 : x0, dir, y0, y1, 0, 34.75, 2, 1.5, 5.5);   // base end standard (Ryan 10/26)
+  endPanel('x', dir > 0 ? x1 : x0, dir, y0, y1, 0, 34.75, 3, 3, 6.5);
 }
-INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, built 1-1/2 thick so the copper sink can sit 1-1/2 from the end (Kevin 10/25). Panel 37-1/2 x 27-3/4 (2 stiles, 1-1/2 top, 5-1/2 bottom rail).';
-endX(137.6, 139.1, 68.5, 110, -1);
-INFO = '#13 End panel (seating end) - framed on the 28-1/2 cabinet, panel 24-1/2 x 27-3/4 (Ryan 10/26 standard). Knee space open to the leg.';
-endX(222.1, 224.85, 68.5, 97, 1);
-INFO = '#12 Back seating panel - 83 framed: 2 stiles and mullions, 1-1/2 top rail, 5-1/2 bottom rail, three 25 x 27-3/4 panels (Ryan 10/26).';
-B(139.1, 94, 0, 83, 3, 34.75);
-endPanel('y', 97, 1, 139.1, 222.1, 0, 34.75, 2, 1.5, 5.5, null, [166.1, 193.1]);   // 2 stiles / mullions, three equal 25 panels
-INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner, 3 apron between (Ryan 10/25).';
-for (const y of [69, 106.5]) { B(234.6, y, 4, 3.5, 3.5, 30.75); B(234.1, y - .5, 0, 4.5, 4.5, 4); }
-INFO = 'Island apron - 3 tall between the two legs at the #13 end (R3 CV).';
-B(237.35, 72.5, 31.75, .75, 34, 3);
-INFO = 'Island apron - 3 tall border that catches the top: back side from the #15 end panel to the leg (Ryan 10/26).';
-B(139.1, 109.25, 31.75, 95.5, .75, 3);
-INFO = 'Island apron - 3 tall, work side from the #13 end panel to the leg (Ryan 10/26).';
-B(224.85, 69, 31.75, 9.75, .75, 3);
+const BB = mat.paint;                                       // baseboard 3-1/2 x 3/4 wrapping the island panels (not a plinth)
+INFO = '#15 End panel (prep-sink end) - CV: built up 3-3/4, 41-1/2 deep, 1 top overhang; 3 stiles, 3 top rail, bottom rail to 6-1/2; panel 35-1/2 x 25-1/4; 3-1/2 baseboard.';
+endX(138.6, 142.35, 68.5, 110, -1);
+B(137.85, 67.75, 0, .75, 43, 3.5, BB);
+INFO = '#13 End panel (seating end) - CV: 3 proud of the 28-1/2 cabinet; panel 22-1/2 x 25-1/4; 3-1/2 baseboard. Knee space open to the legs.';
+endX(221.6, 224.6, 68.5, 97, 1);
+B(224.6, 67.75, 0, .75, 30, 3.5, BB);
+INFO = '#12 Back seating panel - CV: 80 between the ends, 3 stile and mullions, 3 top rail, bottom rail to 6-1/2, panels 23-5/8 / 23-3/4 / 23-5/8 x 25-1/4; 3-1/2 baseboard.';
+B(142.35, 94, 0, 79.25, 3, 34.75);
+{ const P = (x, z, w, h) => B(x, 97, z, w, .25, h);
+  P(141.6, 0, 3, 34.75); P(168.225, 0, 3, 34.75); P(194.975, 0, 3, 34.75);
+  P(144.6, 31.75, 77, 3); P(144.6, 0, 77, 6.5); }
+B(142.35, 97, 0, 79.25, .75, 3.5, BB); B(221.6, 96.25, 0, 3.75, .75, 3.5, BB);
+INFO = 'Island legs (2) - CV: 3 square posts on 4-1/2 x 4-1/2 x 3-1/2 base blocks, one at each corner of the #13 end.';
+for (const y of [68.5, 107]) { B(234.6, y, 3.5, 3, 3, 31.25); B(233.85, y - .75, 0, 4.5, 4.5, 3.5); }
+INFO = 'Island apron - 3 tall between the two legs (CV), continuous with the 3 top rails.';
+B(236.85, 71.5, 31.75, .75, 35.5, 3);
+INFO = 'Island apron - 3 tall border that catches the top: seating side from the #15 end to the leg (CV / Ryan 10/26).';
+B(142.35, 109.25, 31.75, 92.25, .75, 3);
+INFO = 'Island apron - 3 tall, work side from the #13 end to the leg (CV / Ryan 10/26).';
+B(224.6, 68.5, 31.75, 10, .75, 3);
 INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (illustrative). Option B: walnut with integrated soapstone (toggle).';
 // Island top + prep sink. Rebuilt when the prep-sink option changes.
 // Default: 18 stainless (as drawn). Option: Kevin's Sinkology Orwell SK201-23AC 23 hammered copper (23 x 17-3/4).
 // Right of the sink: 3 soapstone + 4 walnut to the island end (Ryan); 4 soapstone behind the faucet; ~16 drainboard left.
 const topStone = new THREE.Group(), topSW = new THREE.Group(), prep = new THREE.Group(); island.add(topStone, topSW, prep);
-let sx = 139.1;                                         // sink 1-1/2 from the island end (Kevin 10/25)
+let sx = 144.1;                                         // prep sink centered on the #11 sink bay (CV), ~6-1/2 from the island end
 function buildIslandTop(sw, sd, copper) {
   for (const g of [topStone, topSW, prep]) { while (g.children.length) g.remove(g.children[0]); }
+  sx = 155.6 - sw / 2;                                           // centered on the 24 sink bay
   const sy0 = 69, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;   // 1-1/2 from the front edge
   const cut = m => {                                             // full 101 x 43-1/2 slab with the sink cutout
     B(137.6, 67.5, 34.75, sx - 137.6, 43.5, 1.25, m); B(sx + sw, 67.5, 34.75, 238.6 - sx - sw, 43.5, 1.25, m);
@@ -509,14 +515,17 @@ function buildIslandTop(sw, sd, copper) {
   B(137.6, 67.5, 34.75, sx - 137.6, 24, 1.25, SP); B(sx + sw, 67.5, 34.75, x1 - sx - sw, 24, 1.25, SP);
   B(sx, 67.5, 34.75, sw, sy0 - 67.5, 1.25, SP); B(sx, sy1, 34.75, sw, y1 - sy1, 1.25, SP);
   outline(137.6, 67.5, 34.75, 42, 24, 1.25); outline(sx, sy0, 34.75, sw, sd, 1.25);
-  B(x1, 67.5, 34.75, 238.6 - x1, 43.5, 2, W); B(137.6, y1, 34.75, x1 - 137.6, 111 - y1, 2, W);
-  outline(x1, 67.5, 34.75, 238.6 - x1, 43.5, 2); outline(137.6, y1, 34.75, x1 - 137.6, 111 - y1, 2);
-  INFO = 'Soapstone inset 42 x 24 (Kevin 10/25): copper prep sink 1-1/2 from the end and front edges, sloped drainboard to the left of the sink, faucet behind. Stone fabricator to approve edge support.';
+  { const sh = new THREE.Shape([[137.6, y1], [x1, y1], [x1, 67.5], [238.6, 67.5], [238.6, 111], [137.6, 111]].map(([x, y]) => new THREE.Vector2(x, -y)));
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 2, bevelEnabled: false }), uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 70, uv.getY(i) / 70);   // one continuous grain, no seam
+    const m = new THREE.Mesh(g, W); m.rotation.x = -Math.PI / 2; m.position.y = 34.75; m.castShadow = m.receiveShadow = true; m.userData.info = INFO; topSW.add(m);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat); m.add(e); edges.push(e); }
+  INFO = 'Soapstone inset 42 x 24 (Kevin 10/25): copper prep sink centered on the #11 sink bay (~6-1/2 from the island end per the CV island), sloped drainboard to the left of the sink, faucet behind.';
   for (let i = 0; i < 6; i++) {
     const gl = x1 - (sx + sw) - 4, g = new THREE.Mesh(new THREE.BoxGeometry(gl, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 2 + gl / 2, 36.005, sy0 + 2 + i * (sd - 4) / 5);
     g.rotation.z = .012; g.userData.info = INFO; topSW.add(g); }   // falls toward the sink
   PARENT = prep;
-  INFO = copper ? 'Prep sink (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep. #11 sink bay 25-1/2 (A3). 7 from the island end: Kevin ~1-1/2 target not buildable over the 4-1/2 framed end.'
+  INFO = copper ? 'Prep sink (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep, centered on the 24 #11 sink bay (CV island, Ryan 10/26) - confirm the bay fits the sink.'
                 : 'OPTION: 18 stainless prep sink. Drawn: Kevin 23 copper Orwell.';
   const sm = copper ? mat.copper : mat.steel, d = 8.9;
   B(sx, sy0, 27, sw, sd, .5, sm); B(sx, sy0, 27, .5, sd, d, sm); B(sx + sw - .5, sy0, 27, .5, sd, d, sm);
