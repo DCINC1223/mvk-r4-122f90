@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MV Kitchen - R4 Interactive 3D - Dillon Cabinet Company</title>
+<style>
+  body { margin: 0; font-family: var(--font-sans, system-ui, -apple-system, Segoe UI, sans-serif); }
+  #wrap { position: relative; width: 100%; height: 540px; border-radius: var(--radius, 10px); overflow: hidden; background: #dde2e6; }
+  #wrap canvas { display: block; touch-action: none; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; align-items: center; }
+  .bar span { font-size: 12px; opacity: .7; margin-right: 2px; }
+  button { font: inherit; font-size: 12.5px; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+           border: 1px solid var(--border, #c9c9c9); background: var(--secondary, #f2f2f2); color: var(--secondary-foreground, #222); }
+  button.on { background: var(--primary, #2b2b2b); color: var(--primary-foreground, #fff); border-color: transparent; }
+  #info { position: absolute; left: 10px; bottom: 10px; max-width: min(520px, 70%); background: rgba(18, 22, 26, .78); color: #fff;
+          font-size: 12.5px; line-height: 1.4; padding: 8px 11px; border-radius: 7px; pointer-events: none; white-space: pre-line; }
+  #stamp { position: absolute; left: 10px; top: 8px; font-size: 11.5px; color: #26313a; background: rgba(255, 255, 255, .78);
+           padding: 4px 8px; border-radius: 5px; pointer-events: none; }
+  #hint { position: absolute; right: 10px; top: 8px; font-size: 11px; color: #26313a; background: rgba(255, 255, 255, .7);
+          padding: 3px 7px; border-radius: 5px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stamp">DILLON CABINET COMPANY &middot; MV KITCHEN &middot; R4 design review &middot; options shown are for discussion</div>
+  <div id="hint">drag = orbit &middot; right-drag = pan &middot; wheel = zoom &middot; click a cabinet</div>
+  <div id="info">Click any cabinet, appliance or detail for its size and notes.</div>
+</div>
+<div class="bar" id="views"><span>Views</span></div>
+<div class="bar" id="toggles"><span>Show</span></div>
+<div class="bar" id="colors"><span>Island color</span></div>
+<div id="optbars"></div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const wrap = document.getElementById('wrap');
+if (window.top === window) wrap.style.height = Math.max(480, innerHeight - 96) + 'px';   // standalone file: fill the window
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+wrap.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xdde2e6);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const camera = new THREE.PerspectiveCamera(50, 1, 1, 5000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxDistance = 900;
+let photo = true;                                           // AO post-processing on/off
+
+// ---------- materials ----------
+function canvasTex(w, h, draw, rx = 1, ry = 1) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry); t.anisotropy = 8; return t;
+}
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const floorTex = canvasTex(2048, 2048, (g, w, h) => {     // wide-plank character-grade white oak, natural finish (Ryan 10/25)
+  const pw = h / (160 / 9);                                  // 9 in planks, 160 in square tile
+  for (let r = 0; r * pw < h; r++) {
+    let x = -rnd() * 900;
+    while (x < w) {
+      const len = 700 + rnd() * 1100, v = 0.88 + rnd() * 0.22, y0 = r * pw;
+      g.fillStyle = `rgb(${206 * v | 0},${156 * v | 0},${100 * v | 0})`; g.fillRect(x, y0, len, pw);
+      for (let k = 0; k < 26; k++) {                         // long grain streaks
+        g.globalAlpha = 0.06 + rnd() * 0.1; g.fillStyle = rnd() > .45 ? '#8a5a2c' : '#f0cf9c';
+        const yy = y0 + rnd() * pw, ww = .8 + rnd() * 2.2;
+        g.beginPath(); g.moveTo(x, yy);
+        for (let sx = 0; sx <= len; sx += 60) g.lineTo(x + sx, yy + Math.sin((sx + k * 37) / 140) * 3);
+        g.lineTo(x + len, yy + ww); g.lineTo(x, yy + ww); g.fill();
+      }
+      const knots = rnd() < .55 ? 1 + (rnd() * 3 | 0) : 0;   // character grade: small knots and checks
+      for (let k = 0; k < knots; k++) {
+        const kx = x + 40 + rnd() * (len - 80), ky = y0 + 8 + rnd() * (pw - 16), rr = 3 + rnd() * 7;
+        g.globalAlpha = .55; g.fillStyle = '#4a2e15'; g.beginPath(); g.ellipse(kx, ky, rr * 1.8, rr, 0, 0, 7); g.fill();
+        g.globalAlpha = .25; g.strokeStyle = '#6b4220'; g.lineWidth = 1.2;
+        for (let q = 1; q < 4; q++) { g.beginPath(); g.ellipse(kx, ky, rr * 1.8 + q * 9, rr + q * 4, 0, 0, 7); g.stroke(); }
+      }
+      g.globalAlpha = 1; g.fillStyle = 'rgba(60,38,18,.55)'; g.fillRect(x, y0, 2.5, pw); x += len;
+    }
+    g.fillStyle = 'rgba(60,38,18,.5)'; g.fillRect(0, r * pw, w, 2);
+  }
+}, 310 / 160, 190 / 160);
+const veinTex = canvasTex(1024, 512, (g, w, h) => {
+  g.fillStyle = '#efede8'; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < 14; k++) {
+    g.strokeStyle = `rgba(150,148,145,${0.08 + rnd() * 0.18})`; g.lineWidth = 0.6 + rnd() * 2.2; g.beginPath();
+    let x = rnd() * w, y = rnd() * h; g.moveTo(x, y);
+    for (let s = 0; s < 12; s++) { x += 40 + rnd() * 80; y += (rnd() - .5) * 90; g.lineTo(x, y); }
+    g.stroke();
+  }
+});
+const oakTex = canvasTex(512, 128, (g, w, h) => {
+  g.fillStyle = '#b8895a'; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < 60; k++) { g.fillStyle = rnd() > .5 ? 'rgba(110,70,35,.18)' : 'rgba(235,200,150,.18)'; g.fillRect(0, rnd() * h, w, .6 + rnd() * 2); }
+});
+// Natural wood: glued-up boards with flat-sawn cathedral grain, pores and (reclaimed) nail holes, checks, saw marks.
+function woodTex(spec) {
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 512; const g = c.getContext('2d');
+  const rgb = (a, k) => `rgb(${a[0] * k | 0},${a[1] * k | 0},${a[2] * k | 0})`;
+  let y = 0;
+  while (y < c.height) {
+    const bh = spec.board[0] + rnd() * spec.board[1], k = 1 - spec.vary / 2 + rnd() * spec.vary;
+    const grd = g.createLinearGradient(0, y, 0, y + bh);
+    grd.addColorStop(0, rgb(spec.base, k * .94)); grd.addColorStop(.5, rgb(spec.base, k)); grd.addColorStop(1, rgb(spec.base, k * .92));
+    g.fillStyle = grd; g.fillRect(0, y, c.width, bh);
+    g.save(); g.beginPath(); g.rect(0, y, c.width, bh); g.clip();
+    for (let q = 0; q < 3; q++) {                                  // cathedral arches along the board
+      const cx = rnd() * c.width, span = 500 + rnd() * 900, cy = y + bh * (.3 + rnd() * .4);
+      for (let r = 1; r < 14; r++) {
+        g.globalAlpha = .1 + rnd() * .12; g.strokeStyle = rnd() > .3 ? rgb(spec.dark, 1) : rgb(spec.light, 1); g.lineWidth = .8 + rnd() * 1.6;
+        g.beginPath(); const w2 = span * (1 - r / 16), off = r * bh / 30;
+        g.moveTo(cx - w2, cy + off * 3); g.quadraticCurveTo(cx, cy - r * bh / 24, cx + w2, cy + off * 3); g.stroke();
+      }
+    }
+    for (let k2 = 0; k2 < 40; k2++) {                              // straight grain streaks
+      g.globalAlpha = .05 + rnd() * .1; g.fillStyle = rnd() > .5 ? rgb(spec.dark, 1) : rgb(spec.light, 1);
+      const yy = y + rnd() * bh; g.fillRect(0, yy, c.width, .6 + rnd() * 1.6);
+    }
+    g.globalAlpha = .25; g.fillStyle = rgb(spec.dark, .8);                 // open pores
+    for (let k2 = 0; k2 < 900; k2++) g.fillRect(rnd() * c.width, y + rnd() * bh, 2 + rnd() * 6, .7);
+    if (spec.reclaimed) {
+      for (let k2 = 0; k2 < 4; k2++) {                             // nail holes with iron stain
+        const nx = rnd() * c.width, ny = y + 4 + rnd() * (bh - 8);
+        g.globalAlpha = .25; g.fillStyle = '#2a2420'; g.beginPath(); g.arc(nx, ny, 7, 0, 7); g.fill();
+        g.globalAlpha = .9; g.fillStyle = '#141110'; g.beginPath(); g.arc(nx, ny, 2.2, 0, 7); g.fill();
+      }
+      for (let k2 = 0; k2 < 3; k2++) {                             // circular saw marks
+        g.globalAlpha = .07; g.strokeStyle = '#2a1a10'; g.lineWidth = 1.2; const sx0 = rnd() * c.width;
+        for (let r = 0; r < 10; r++) { g.beginPath(); g.arc(sx0 + r * 22, y + bh * 2.5, bh * 2.2, -1.9, -1.2); g.stroke(); }
+      }
+      g.globalAlpha = .5; g.strokeStyle = '#1a120c'; g.lineWidth = 1;   // end checks
+      for (let k2 = 0; k2 < 2; k2++) { const cx0 = rnd() * c.width, cy0 = y + rnd() * bh; g.beginPath(); g.moveTo(cx0, cy0); g.lineTo(cx0 + 40 + rnd() * 80, cy0 + (rnd() - .5) * 3); g.stroke(); }
+      g.globalAlpha = .12; g.fillStyle = '#9b9488';                         // weathered grey patches
+      for (let k2 = 0; k2 < 2; k2++) g.fillRect(rnd() * c.width, y, 150 + rnd() * 300, bh);
+    }
+    g.restore();
+    g.globalAlpha = .6; g.fillStyle = rgb(spec.dark, .7); g.fillRect(0, y + bh - 1, c.width, 1.2);   // glue line
+    g.globalAlpha = 1; y += bh;
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+  const b = new THREE.CanvasTexture(c); b.wrapS = b.wrapT = THREE.RepeatWrapping;
+  return [t, b];
+}
+const WOOD = {
+  walnut: woodTex({ base: [104, 68, 44], dark: [42, 26, 16], light: [150, 108, 74], board: [70, 70], vary: .25 }),
+  reclaimed: woodTex({ base: [158, 98, 70], dark: [70, 40, 26], light: [196, 140, 104], board: [60, 90], vary: .35, reclaimed: true }),
+};
+const soapTex = canvasTex(1024, 512, (g, w, h) => {        // soapstone: charcoal with faint veins
+  g.fillStyle = '#3d4244'; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < 10; k++) { g.strokeStyle = `rgba(190,200,200,${0.05 + rnd() * 0.12})`; g.lineWidth = .5 + rnd() * 1.5; g.beginPath();
+    let x = rnd() * w, y = rnd() * h; g.moveTo(x, y); for (let s2 = 0; s2 < 10; s2++) { x += 50 + rnd() * 90; y += (rnd() - .5) * 80; g.lineTo(x, y); } g.stroke(); }
+});
+const M = (color, roughness = .6, metalness = 0, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+const mat = {
+  paint: M(0xefebe0, .42), reveal: M(0x6f6a60, .9), wall: M(0xf3f1eb, .92), beam: M(0xf6f4ef, .8),
+  oak: M(0xffffff, .55, 0, { map: oakTex }), nat: M(0xffffff, .5, 0, { map: WOOD.walnut[0], bumpMap: WOOD.walnut[1], bumpScale: .6 }),
+  islandWalnut: M(0xffffff, .5, 0, { map: WOOD.walnut[0], bumpMap: WOOD.walnut[1], bumpScale: .6 }), soap: M(0xffffff, .7, 0, { map: soapTex }), stone: M(0xffffff, .28, 0, { map: veinTex }),
+  floor: M(0xffffff, .45, 0, { map: floorTex, bumpMap: floorTex, bumpScale: .5 }), steel: M(0xc4c8ca, .32, .85), nickel: M(0xb9b6ad, .28, .9),
+  black: M(0x15181a, .18, .3), ceramic: M(0xfbfbf8, .14), cushion: M(0x7d8479, .95), walnut: M(0x5b3d27, .5),
+  glass: M(0xd6ecf7, .05, 0, { emissive: 0xcfe7f5, emissiveIntensity: 1.1 }),
+  dfGlass: M(0x1d2a30, .05, .2, { transparent: true, opacity: .75 }),
+  led: M(0xfff1d0, 1, 0, { emissive: 0xffe6b0, emissiveIntensity: 2.2 }),
+  clear: M(0x6aa7d8, .5, 0, { transparent: true, opacity: .28, depthWrite: false }),
+  hw: M(0xb9b6ad, .28, .9), copper: M(0xa0603a, .3, .95), glassDoor: M(0xd8e6ea, .05, 0, { transparent: true, opacity: .3, depthWrite: false }),
+};
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x8b867b, transparent: true, opacity: .5 });
+
+// ---------- builders ----------
+const groups = {};
+const grp = (name, parent = scene) => { const g = new THREE.Group(); g.name = name; parent.add(g); groups[name] = g; return g; };
+const shell = grp('shell'), ceiling = grp('ceiling'), cabinetry = grp('cabinetry'), island = grp('island'),
+      tags = grp('tags'), dims = grp('dims'), props = grp('props'), edges = [];
+let PARENT = cabinetry, INFO = null, EDGE = true;
+function B(X, Y, Z, w, d, h, m = mat.paint, o = {}) {
+  const geo = new THREE.BoxGeometry(w, h, d), mesh = new THREE.Mesh(geo, m);
+  mesh.position.set(X + w / 2, Z + h / 2, Y + d / 2);
+  mesh.castShadow = o.cast !== false; mesh.receiveShadow = true;
+  if (INFO) mesh.userData.info = INFO;
+  (o.parent || PARENT).add(mesh);
+  if (o.edges ?? EDGE) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edgeMat); mesh.add(e); edges.push(e); }
+  return mesh;
+}
+function outline(X, Y, Z, w, d, h) {                     // edge lines only (one-piece slab with cutouts)
+  const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), l = new THREE.LineSegments(geo, edgeMat);
+  l.position.set(X + w / 2, Z + h / 2, Y + d / 2); PARENT.add(l); edges.push(l);
+}
+function knob(X, Y, Z) {
+  const k = new THREE.Mesh(new THREE.SphereGeometry(.62, 16, 10), mat.hw);
+  k.scale.set(1, 1, .8); k.position.set(X, Z, Y); k.castShadow = true; if (INFO) k.userData.info = INFO; PARENT.add(k);
+}
+function pull(X, Y, Z, len, vertical = false) {        // bar pull
+  B(vertical ? X - .25 : X - len / 2, Y - .25, vertical ? Z - len / 2 : Z - .25, vertical ? .5 : len, .5, vertical ? len : .5, mat.hw, { edges: false });
+}
+// Inset shaker face on a plane of constant Y. dir=+1 faces the room (+Y), -1 faces the main wall.
+function face(X, Z, w, h, y, dir = 1, kind = 'door', kn = 'R') {
+  const seg = (a, b) => dir > 0 ? [y + a, b - a] : [y - b, b - a];
+  const [ry, rd] = seg(-.02, .03); B(X, ry, Z, w, rd, h, mat.reveal, { cast: false, edges: false });
+  const g = .125, x0 = X + g, z0 = Z + g, W = w - 2 * g, H = h - 2 * g;
+  if (kind === 'drawer' && h <= 7.5 || kind === 'slab') { const [fy, fd] = seg(.03, .32); B(x0, fy, z0, W, fd, H); }
+  else {
+    const r = Math.min(2.25, W / 4, H / 4), [fy, fd] = seg(.03, .42), [py, pd] = seg(.03, .2);
+    B(x0, fy, z0, r, fd, H); B(x0 + W - r, fy, z0, r, fd, H);
+    B(x0 + r, fy, z0, W - 2 * r, fd, r); B(x0 + r, fy, z0 + H - r, W - 2 * r, fd, r);
+    var panel = B(x0 + r, py, z0 + r, W - 2 * r, pd, H - 2 * r);
+  }
+  if (kn) {
+    const kx = kind === 'drawer' ? X + w / 2 : (kn === 'R' ? X + w - 1.9 : X + 1.9);
+    const kz = kind === 'drawer' ? Z + h / 2 : (Z > 40 ? Z + 3 : Z + h - 3);
+    knob(kx, y + dir * 1.05, kz);
+  }
+  return panel;
+}
+function tag(text, X, Y, Z, size = .036) { tags.add(label(text, X, Y, Z, size, '#ffffff', 'rgba(31,74,110,.92)')); }
+function label(text, X, Y, Z, size = .03, color = '#14212b', bg = 'rgba(255,255,255,.9)', onTop = true) {
+  const c = document.createElement('canvas'), g = c.getContext('2d'), fs = 56, font = `600 ${fs}px system-ui, Segoe UI, sans-serif`;
+  g.font = font; c.width = Math.ceil(g.measureText(text).width) + 36; c.height = fs + 26;
+  g.font = font; g.fillStyle = bg; g.beginPath(); g.roundRect(0, 0, c.width, c.height, 18); g.fill();
+  g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 18, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: !onTop, transparent: true, sizeAttenuation: false }));
+  s.scale.set(size * c.width / c.height, size, 1); s.position.set(X, Z, Y); s.renderOrder = 10; return s;
+}
+const frac = v => {                                      // 1/16 inch, e.g. 103 7/8
+  const s16 = Math.round(v * 16), whole = Math.floor(s16 / 16); let n = s16 % 16, d = 16;
+  while (n && n % 2 === 0) { n /= 2; d /= 2; }
+  return n ? (whole ? `${whole} ${n}/${d}` : `${n}/${d}`) : `${whole}`;
+};
+const dimMat = new THREE.LineBasicMaterial({ color: 0xc0392b });
+function dim(a, b, text, parent = dims, size = .028, tick = [0, 1.5, 0]) {   // a, b = [X, Y, Z]
+  const P = p => new THREE.Vector3(p[0], p[2], p[1]), A = P(a), Bv = P(b), T = new THREE.Vector3(tick[0], tick[2], tick[1]);
+  const pts = [A, Bv, A.clone().sub(T), A.clone().add(T), Bv.clone().sub(T), Bv.clone().add(T)];
+  const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), dimMat); l.renderOrder = 9; parent.add(l);
+  const m = A.clone().add(Bv).multiplyScalar(.5);
+  parent.add(label(text ?? frac(Bv.distanceTo(A)), m.x, m.z, m.y + .3, size, '#9e2a1f', 'rgba(255,255,255,.92)', false));
+}
+
+// ---------- room shell (walls, floor, ceiling, beams) ----------
+PARENT = shell; EDGE = false; INFO = null;
+B(-5, -5, -.5, 309, 188.5, .5, mat.floor, { cast: false });
+// walls hide automatically when the camera is outside them (cutaway); [three axis, plane, outside sign]
+const walls = [];
+const wallGrp = (axis, v, sign) => { const g = new THREE.Group(); shell.add(g); walls.push({ g, axis, v, sign }); return g; };
+const wMain = wallGrp('z', -5, -1), wEnd = wallGrp('x', 304, 1), wEntry = wallGrp('x', -5, -1), wLeft = wallGrp('z', 149, 1), wBack = wallGrp('z', 183.5, 1);
+PARENT = wMain;
+// main wall Y=0 with pantry door 28.5..64.5 x 80 and window glass 219.75..277.35, Z 44..81
+B(-6, -5, 0, 34.5, 5, 101, mat.wall); B(28.5, -5, 80, 36, 5, 21, mat.wall); B(64.5, -5, 0, 155.25, 5, 101, mat.wall);
+B(219.75, -5, 0, 57.6, 5, 44, mat.wall); B(219.75, -5, 81, 57.6, 5, 20, mat.wall); B(277.35, -5, 0, 26.65, 5, 101, mat.wall);
+PARENT = wEnd; B(299, 0, 0, 5, 183.5, 101, mat.wall);                          // end wall
+PARENT = wEntry; B(-5, -5, 0, 5, 58.9, 101, mat.wall); B(-5, 84.5, 0, 5, 64.5, 101, mat.wall); // entry wall with window 53.9..84.5
+B(-5, 53.9, 0, 5, 30.6, 43.7, mat.wall); B(-5, 53.9, 81, 5, 30.6, 20, mat.wall);
+INFO = 'Entry wall window - existing (A2: sill 43-3/4, head 81).'; B(-3, 53.9, 43.7, .3, 30.6, 37.3, mat.glass, { cast: false });
+B(0, 51.9, 42, 1.5, 34.6, .9);
+PARENT = wLeft; INFO = null; B(0, 144, 0, 97.5, 5, 101, mat.wall);
+PARENT = wBack; B(97.5, 144, 0, 6, 39.5, 101, mat.wall); B(103.5, 177.5, 0, 122.5, 6, 101, mat.wall);
+PARENT = wMain; INFO = 'Existing window - HOLD (possible new double). Casing 65-5/8 wide; sink and window share centerline 248-1/2.';
+B(219.75, -3, 44, 57.6, .3, 37, mat.glass, { cast: false });
+B(248.4, -2.8, 44, .2, .2, 37, mat.paint);
+EDGE = true;
+B(215.75, 0, 40, 4, .75, 45.8); B(277.35, 0, 40, 4, .75, 45.8); B(215.75, 0, 81, 65.6, .75, 4.8); B(214.5, 0, 43.2, 68.1, 2.5, .8);
+INFO = 'Pantry passage door - opening 36 (was 32). Verify casing on site.';
+B(25, 0, 0, 3.5, .75, 84.5); B(64.5, 0, 0, 3.5, .75, 84.5); B(25, 0, 80, 43, .75, 4.5);
+B(28.6, -2.5, .3, 35.8, 1.5, 79.4);
+face(32, 7, 29, 29, -1, 1, 'door', ''); face(32, 41, 29, 34, -1, 1, 'door', ''); knob(61.3, -.2, 37);
+PARENT = ceiling; EDGE = false; INFO = 'Existing ceiling beams - painted white. Spacer removal pending structural check.';
+for (const y of [42.7, 87.2, 134.8]) B(0, y, 95.5, 299, 5.6, 5.5, mat.beam);
+INFO = null;
+const ceil = B(-5, -5, 101, 309, 188.5, 2, mat.wall, { cast: false, parent: scene }); ceil.visible = false;
+
+// ---------- main wall cabinetry (A1) ----------
+PARENT = cabinetry; EDGE = true;
+const toe = (x0, x1, d = 21) => B(x0 + .5, 0, 0, x1 - x0 - 1, d, 4, mat.reveal, { edges: false });
+INFO = '#4 Tall pantry 32 wide x 24 deep, to soffit at 95-1/2.';
+B(69, 0, 4, 32, 24, 91.5); toe(69, 101);
+[[5.5, 9.25], [16.25, 9.25], [27, 9.25]].forEach(([z, h]) => face(71, z, 28, h, 24, 1, 'drawer'));
+face(71, 38, 14, 54.5, 24, 1, 'door', 'R'); face(85, 38, 14, 54.5, 24, 1, 'door', 'L');
+INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). 35-3/4 W x 83-7/8 H x 24-3/4 D; cutout 36 x 84 x 25 - panel template TBD.';
+B(101, 0, 0, 40, 24, 95.5);
+face(103, 34.44, 36, 49.56, 24, 1, 'door', 'R');
+face(103, 24, 36, 9.81, 24, 1, 'drawer', ''); face(103, 4, 36, 19.4, 24, 1, 'drawer', ''); pull(121, 25.5, 21, 18);
+face(103, 85.5, 18, 8.5, 24, 1, 'door', 'R'); face(121, 85.5, 18, 8.5, 24, 1, 'door', 'L');
+INFO = '#6 Base 18-1/8, three drawers.';
+B(141, 0, 4, 18.125, 24, 30.75); toe(141, 159.125);
+[[27.75, 5.5], [15.875, 10.375], [5.5, 10.375]].forEach(([z, h]) => face(143, z, 14.125, h, 24, 1, 'drawer'));
+const glassPanels = [], glassShelves = [];
+function upper(x, w, num, kn = 'R') {
+  INFO = `${num} Upper ${frac(w)} wide x 12 deep x 41-1/2, stops at soffit. 1-1/2 bottom light rail with LED.` + (num !== '#8' ? ' OPTION (Kevin board): glass-front door at the sink.' : '');
+  B(x, 0, 54, w, 12, 41.5); const pnl = face(x + 2, 56, w - 4, 36.5, 12, 1, 'door', kn);
+  if (num !== '#8') { glassPanels.push(pnl); for (const z of [67, 80]) { const sh = B(x + 1, 1, z, w - 2, 10.5, .75); sh.visible = false; glassShelves.push(sh); } }
+  B(x, 10.5, 52.5, w, 2.25, 1.5); B(x + 1, 1, 53.9, w - 2, 9, .1, mat.led, { cast: false, edges: false });
+}
+upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10'); upper(284, 15, '#16', 'L');
+INFO = 'End stiles run to the floor on all cabinet ends (Ryan 10/25).';
+for (const x of [69, 99, 141, 157.125, 195.125]) B(x, 0, 0, 2, 24, 4);
+INFO = 'Range: Cafe C2Y366P2TS1 36 dual-fuel (Kevin 10/25) - 31-1/8 deep with handle, 29-3/8 without. Hood bottom 30 above range top. Gas + 240V/30A.';
+EDGE = false;
+B(159.125, 0, 0, 36, 29.375, 35.5, mat.steel); B(163, 29.375, 6, 28, .3, 21, mat.black); B(159.125, 29.375, 29, 36, .6, 6, mat.steel);
+B(162, 30.6, 27.6, 30, .6, .6, mat.hw, { edges: false });   // oven handle
+for (let i = 0; i < 6; i++) { const k = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 1.2, 20), mat.black); k.rotation.x = Math.PI / 2; k.position.set(163 + i * 5.8, 32, 30.3); PARENT.add(k); }
+B(159.125, 0, 35.5, 36, 29.375, .5, mat.black);
+for (const x of [161, 178.5]) for (const y of [2, 14.5]) { B(x, y, 36, 15.5, 11, .5, mat.black); B(x + 1, y + 1, 36.5, 13.5, .4, .4, mat.steel); B(x + 1, y + 9.6, 36.5, 13.5, .4, .4, mat.steel); }
+const hoodCustom = new THREE.Group(), hoodCafe = new THREE.Group(); cabinetry.add(hoodCustom, hoodCafe);
+PARENT = hoodCustom;
+INFO = 'Paneled tapered hood (proposed - confirm): bottom 66; 3-1/2 walnut band (option reclaimed red oak) projects 1/2 past the hood front and sides; front tapers 22 deep to 14 at soffit.';
+EDGE = true;
+B(158.625, 0, 66, 37, 22.5, 3.5, mat.nat);
+{ // shaker frame (3 stiles / rails) applied to the sloped hood front
+  const g = new THREE.Group(), L = Math.hypot(26, 8);
+  g.position.set(159.125, 69.5, 22); g.rotation.x = -Math.atan2(8, 26);
+  const piece = (x, y, w, h, t) => { const geo = new THREE.BoxGeometry(w, h, t), m = new THREE.Mesh(geo, mat.paint);
+    m.position.set(x + w / 2, y + h / 2, t / 2); m.castShadow = m.receiveShadow = true; m.userData.info = INFO;
+    m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edgeMat)); g.add(m); };
+  piece(0, 0, 3, L, .3); piece(33, 0, 3, L, .3); piece(3, 0, 30, 3, .3); piece(3, L - 3, 30, 3, .3);
+  PARENT.add(g); }
+{ const g = new THREE.BoxGeometry(36, 26, 22), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > 0 && p.getZ(i) > 0) p.setZ(i, 3);   // top front edge back to 14 deep
+  g.computeVertexNormals();
+  const h = new THREE.Mesh(g, mat.paint); h.position.set(177.125, 82.5, 11); h.castShadow = h.receiveShadow = true; h.userData.info = INFO;
+  h.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat)); PARENT.add(h); }
+PARENT = hoodCafe; INFO = 'OPTION: Cafe CBW36YIEWW6 36 commercial hood, matte white (Kevin 10/25 - reference only, not final). 36 W x 18 H x 21 D; 8 round duct.';
+{ const white = M(0xf2f1ec, .55);
+  B(159.125, 0, 66, 36, 21, 3, white);
+  const g = new THREE.BoxGeometry(36, 15, 21), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) { p.setX(i, p.getX(i) * 12 / 36); p.setZ(i, p.getZ(i) * 10 / 21 - 5.5); }
+  g.computeVertexNormals(); const m = new THREE.Mesh(g, white); m.position.set(177.125, 76.5, 10.5); m.castShadow = true; m.userData.info = INFO; PARENT.add(m);
+  B(171.125, 0, 84, 12, 10, 11.5, white); }
+hoodCafe.visible = false;
+PARENT = cabinetry;
+INFO = 'Soffit 14 deep x 5-1/2 at beam line (proposed), 69 to wall. Uppers stop at soffit.';
+B(69, 0, 95.5, 230, 14, 5.5);
+INFO = 'Soffit underside over sink: 3 equal panels (70-3/4 overall), one light each; center light on sink CL.';
+for (let i = 0; i < 3; i++) {
+  const x = 213.25 + i * 70.75 / 3;
+  B(x + .1, .1, 95.3, 70.75 / 3 - .2, 13.8, .2, mat.paint);
+  const lx = i === 1 ? 248.5 : x + 70.75 / 6;           // center light on sink CL (A1)
+  const d = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .25, 28), mat.led); d.position.set(lx, 95.15, 7); d.userData.info = INFO; PARENT.add(d);
+  const s = new THREE.SpotLight(0xffe2b0, 1.4, 0, .62, .65, 0); s.position.set(lx, 95, 7); s.target.position.set(lx, 30, 9);
+  scene.add(s, s.target);
+}
+// #7 sink run 195.125..299 (103-7/8)
+INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash 16-1/4 | 36 apron sink (on window CL) | 1-1/2 stile | 24 DW | 2 stile | 5 recessed filler.';
+B(195.125, 0, 4, 72.875, 24, 30.75); toe(195.125, 268);
+[[27.75, 5.5], [16.625, 10.875], [5.5, 10.875]].forEach(([z, h]) => face(197.125, z, 14.125, h, 24, 1, 'drawer'));
+INFO = '#7 Trash pullout 16-1/4 opening (R3 Kessebohmer double 36 qt - confirm fit).';
+face(212.75, 27.75, 16.25, 5.5, 24, 1, 'drawer'); face(212.75, 5.5, 16.25, 20.75, 24, 1, 'door', 'R');
+INFO = '#7 Sink base 39 between stiles - Nantucket Sinks T-PS36MB 36 matte black fireclay apron sink (Kevin 10/25), 36 x 19, 10 apron, centered on window CL 248-1/2. Maker recommends 39 min base: met.';
+mat.ceramic = M(0x232323, .75);   // matte black fireclay (option: white)
+face(230.5, 5.5, 18, 18, 24, 1, 'door', 'R'); face(248.5, 5.5, 18, 18, 24, 1, 'door', 'L');
+EDGE = false;
+B(230.5, 2.5, 25, 36, 22.5, .6, mat.ceramic); B(230.5, 2.5, 25, .9, 23, 9.75, mat.ceramic); B(265.6, 2.5, 25, .9, 23, 9.75, mat.ceramic);
+B(230.5, 2.5, 25, 36, .9, 9.75, mat.ceramic); B(230.5, 24.6, 25, 36, 1, 9.75, mat.ceramic);
+EDGE = true;
+INFO = 'Dishwasher: Cafe CDT858I6ZII 24 panel-ready, custom panel + handle (Kevin 10/25). Opening 24 W x 33-1/2 H x 24 D; panel template TBD.';
+B(268, 0, 4, 24, 23.9, 30.75, mat.reveal, { edges: false }); face(268, 4, 24, 30.75, 24, 1, 'door', ''); pull(280, 25.5, 31.5, 12);
+INFO = 'NEW 10/25: 2 face stile right of the DW, flush with the face frame, floor to counter.';
+B(292, 23, 0, 2, 1, 34.75);
+INFO = 'NEW 10/25: 5 filler recessed 1 behind the 2 stile face, to the floor with baseboard, scribed to the end wall.';
+B(293.25, 22.25, 0, 5.75, .75, 34.75); B(294, 23, 0, 5, .5, 4);
+INFO = 'Perimeter countertops HELD - stone / edge not selected (illustrative). 4 splash.';
+B(141, 0, 34.75, 18.125, 25, 1.25, mat.stone); B(141, 0, 36, 18.125, .75, 4, mat.stone);
+EDGE = false;
+B(195.125, 0, 34.75, 35.375, 25, 1.25, mat.stone); B(266.5, 0, 34.75, 32.5, 25, 1.25, mat.stone); B(230.5, 0, 34.75, 36, 2.5, 1.25, mat.stone);
+outline(195.125, 0, 34.75, 103.875, 25, 1.25); outline(230.5, 2.5, 34.75, 36, 22.5, 1.25);
+EDGE = true;
+B(195.125, 0, 36, 103.875, .75, 4, mat.stone);
+INFO = 'Faucet - illustrative.';
+{ const c = new THREE.CatmullRomCurve3([[248.5, 36, 1.5], [248.5, 48, 1.5], [248.5, 51.5, 4.5], [248.5, 50, 8], [248.5, 45, 9]].map(p => new THREE.Vector3(...p)));
+  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 40, .45, 12), mat.nickel); f.castShadow = true; f.userData.info = INFO; props.add(f); }
+
+// ---------- entry wall (A2): drop zone #3 and bench #1 / #2 ----------
+INFO = '#3 Drop zone 43 - counter height, walnut top. Paneled 24 drink fridge + 15 ice maker (models TBD), walnut shelves at 54 and 69-1/4.';
+B(0, 0, 0, 23.9, 1.25, 34.5); B(0, 16.25, 0, 23.9, 1.5, 34.5); B(0, 41.75, 0, 23.9, 1.25, 34.5); B(0, 0, 34.5, 24, 43, .25);
+// paneled appliance fronts (shaker, face on the X = 24 plane)
+function faceX(y, z, w, h, kn) {
+  B(24, y, z, .03, w, h, mat.reveal, { cast: false, edges: false });
+  const g = .125, y0 = y + g, z0 = z + g, W = w - 2 * g, H = h - 2 * g, r = Math.min(2.25, W / 4, H / 4);
+  B(24, y0, z0, .42, r, H); B(24, y0 + W - r, z0, .42, r, H); B(24, y0 + r, z0, .42, W - 2 * r, r); B(24, y0 + r, z0 + H - r, .42, W - 2 * r, r);
+  B(24, y0 + r, z0 + r, .2, W - 2 * r, H - 2 * r);
+  if (kn) knob(25.05, kn < 0 ? y + 1.9 : y + w - 1.9, z + h - 3);
+}
+INFO = '#3 Paneled 24 under-counter drink fridge (panel-ready, model TBD).';
+B(0, 17.75, 0, 23.5, 24, 34.5, mat.reveal, { edges: false }); faceX(17.75, 0, 24, 34.5, 1);
+INFO = '#3 Paneled 15 ice maker (panel-ready, model TBD).';
+B(0, 1.25, 0, 23.5, 15, 34.5, mat.reveal, { edges: false }); faceX(1.25, 0, 15, 34.5, -1);
+INFO = '#3 Exposed end - shaker panel, runs to the floor.';
+B(0, 43, 0, 24, .25, 4); B(0, 43, 31.5, 24, .25, 3); B(0, 43, 4, 3, .25, 27.5); B(21, 43, 4, 3, .25, 27.5);
+INFO = '#3 Walnut top (Ryan 10/25: natural wood walnut; option reclaimed red oak).';
+B(0, 0, 34.75, 25, 44, 1.25, mat.nat);
+for (const z of [54, 69.25]) B(0, 0, z, 11, 43, 1.75, mat.nat);
+INFO = '#1 / #2 Mudroom bench - shaker panels, 7 toe, 2 cushion (no shiplap).';
+for (const [x, y, w, d] of [[0, 88.5, 22, 33.5], [0, 122, 22, 22], [22, 121, 54, 23]]) {
+  B(x, y, 7, w, d, 12); B(x, y + 1, 0, w - (x ? 0 : 1), d - (x ? 1 : 2), 7, mat.reveal, { edges: false });
+  B(x, y, 19, w, d, 1.5); B(x, y, 20.5, w, d, 2, mat.cushion);
+}
+B(22, 91, 8.5, .4, 28.5, 9);                                     // #2 front panel (A2)
+for (const y of [88.5, 121]) B(21, y, 0, 1, 1, 7);                 // #2 outside stiles to the floor
+for (const x of [22, 75]) B(x, 121, 0, 1, 1, 7);                   // #1 outside stiles to the floor
+for (let i = 0; i < 2; i++) B(24.5 + i * 26, 120.6, 8.5, 24, .4, 9); // #1 front panels
+
+// ---------- dining table at the corner bench (decorative, size TBD) ----------
+const dining = new THREE.Group(); scene.add(dining);
+PARENT = dining; EDGE = false; INFO = 'Table at the bench - illustrative 48 x 36 walnut, 30 high (not in scope; size TBD).';
+B(26, 79, 28.5, 48, 36, 1.5, mat.nat);                                   // top
+for (const [x, y] of [[28, 81], [70, 81], [28, 111], [70, 111]]) B(x, y, 0, 2.25, 2.25, 28.5, mat.nat);
+B(30, 82, 25.5, 40, .9, 3, mat.nat); B(30, 112.3, 25.5, 40, .9, 3, mat.nat); B(28.6, 83, 25.5, .9, 28, 3, mat.nat); B(70.5, 83, 25.5, .9, 28, 3, mat.nat);
+INFO = 'Chairs - decorative only.';
+function chair(cx, cy, rot) {                                           // simple wood chair, rot = facing angle
+  const g = new THREE.Group(); g.position.set(cx, 0, cy); g.rotation.y = rot; dining.add(g);
+  const P = (x, y, z, w, h, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat.walnut);
+    m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; m.userData.info = INFO; g.add(m); };
+  P(0, 18, 0, 17, 1.5, 16);                                             // seat
+  for (const [x, z] of [[-7.5, -7], [7.5, -7], [-7.5, 7], [7.5, 7]]) P(x, 9, z, 1.4, 18, 1.4);
+  for (const x of [-7.5, 7.5]) P(x, 26, 7, 1.4, 16, 1.4);                // back posts
+  P(0, 31.5, 7, 16.5, 4, 1); P(0, 25, 7, 16.5, 1.5, 1);                   // back rails
+}
+chair(86, 97, Math.PI / 2);      // east end, facing the table (-X)
+chair(50, 67, Math.PI);          // room side, facing the table (+Y)
+EDGE = true;
+
+// ---------- island (A3), placed per P1 ----------
+PARENT = island;
+const IX = 222.1;                                        // X of the #14 end of the cabinets; local u runs toward lower X
+const U = (u, w) => IX - u - w;
+INFO = '#14 Island 26 - Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H; 15.1 open-drawer clearance.';
+B(196.1, 68.5, 4, 26, 24, 30.75); face(197.1, 5.5, 24, 12, 68.5, -1, 'drawer');
+EDGE = false; B(197.1, 67.85, 18.5, 24, .65, 15, mat.steel); B(198.6, 67.7, 21, 21, .2, 10, mat.black); pull(209.1, 67.3, 31, 18); EDGE = true;
+INFO = '#11 Island 54 - 18 prep sink at the far right (Kevin markup); 4 doors, 1 drawer, false front.';
+B(142.1, 68.5, 4, 54, 24, 30.75);
+face(U(28, 24.5), 27.75, 24.5, 5.5, 68.5, -1, 'drawer'); face(U(55.5, 22.5), 27.75, 22.5, 5.5, 68.5, -1, 'drawer');
+[[28, 12.25, 'L'], [40.25, 12.25, 'R'], [55.5, 11.25, 'L'], [66.75, 11.25, 'R']].forEach(([u, w, k]) => face(U(u, w), 5.5, w, 20.75, 68.5, -1, 'door', k));
+INFO = 'Island toe / legs / back panels per R3. Seating overhang 14 on the back side.';
+B(142.6, 71.5, 0, 79, 21, 4, mat.reveal, { edges: false });
+// R3 sheet 1.4 detailing: framed end panels #13 / #15, framed back panel #12, one leg at the seating corner.
+// Frame members (3 stiles, 3 top rail, 6-1/2 bottom rail to floor) stand 1/4 proud of a flat recessed panel.
+function endX(x0, x1, y0, y1, dir) {                       // framed end panel on a constant-X face
+  B(x0, y0, 0, x1 - x0, y1 - y0, 34.75);
+  const fx = dir > 0 ? x1 : x0 - .25, d = y1 - y0;
+  B(fx, y0, 0, .25, 3, 34.75); B(fx, y1 - 3, 0, .25, 3, 34.75);
+  B(fx, y0 + 3, 31.75, .25, d - 6, 3); B(fx, y0 + 3, 0, .25, d - 6, 6.5);
+}
+INFO = '#15 End panel (prep-sink end) - framed, 41-1/2 full depth, closes the seating overhang. Panel 35-1/2 x 25-1/4 (R3 1.4).';
+endX(137.6, 142.1, 68.5, 110, -1);
+INFO = '#13 End panel (seating end) - framed on the 28-1/2 cabinet, panel 22-1/2 x 25-1/4 (R3 1.4). Knee space open to the leg.';
+endX(222.1, 224.85, 68.5, 97, 1);
+INFO = '#12 Back seating panel - 80 framed, three panels 23-5/8 / 23-3/4 / 23-5/8 x 25-1/4, 6-1/2 bottom rail (R3 1.4).';
+B(142.1, 94, 0, 80, 3, 34.75);
+for (const [x, w] of [[142.1, 3], [168.725, 3], [195.475, 3]]) B(x, 97, 0, w, .25, 34.75);
+B(145.1, 97, 31.75, 77, .25, 3); B(145.1, 97, 0, 77, .25, 6.5);
+INFO = 'Island legs (2) at the #13 end - 3-1/2 square posts on 4-1/2 base blocks, one at each corner (R3 1.4). Verify leg detail.';
+for (const y of [69, 106.5]) { B(234.6, y, 4, 3.5, 3.5, 30.75); B(234.1, y - .5, 0, 4.5, 4.5, 4); }
+INFO = 'Island apron - 3 tall between the two legs at the #13 end (R3 CV).';
+B(237.35, 72.5, 31.75, .75, 34, 3);
+INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (illustrative). Option B: walnut with integrated soapstone (toggle).';
+// Island top + prep sink. Rebuilt when the prep-sink option changes.
+// Default: 18 stainless (as drawn). Option: Kevin's Sinkology Orwell SK201-23AC 23 hammered copper (23 x 17-3/4).
+// Right of the sink: 3 soapstone + 4 walnut to the island end (Ryan); 4 soapstone behind the faucet; ~16 drainboard left.
+const topStone = new THREE.Group(), topSW = new THREE.Group(), prep = new THREE.Group(); island.add(topStone, topSW, prep);
+let sx = 144.6;
+function buildIslandTop(sw, sd, copper) {
+  for (const g of [topStone, topSW, prep]) { while (g.children.length) g.remove(g.children[0]); }
+  const sy0 = 72.5, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;
+  const cut = m => {                                             // full 101 x 43-1/2 slab with the sink cutout
+    B(137.6, 67.5, 34.75, sx - 137.6, 43.5, 1.25, m); B(sx + sw, 67.5, 34.75, 238.6 - sx - sw, 43.5, 1.25, m);
+    B(sx, 67.5, 34.75, sw, sy0 - 67.5, 1.25, m); B(sx, sy1, 34.75, sw, 111 - sy1, 1.25, m);
+    outline(137.6, 67.5, 34.75, 101, 43.5, 1.25); outline(sx, sy0, 34.75, sw, sd, 1.25);
+  };
+  PARENT = topStone; INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (perimeter is white quartzite per Kevin).'; cut(mat.stone);
+  PARENT = topSW;
+  INFO = 'Island option B (Kevin board: black walnut + soapstone): soapstone base top with a 2 in walnut slab sitting ON TOP of it on three sides of the sink area (end, back, drainboard side); front open to the soapstone edge.';
+  const x0 = sx - 3, x1 = sx + sw + 16, y1 = fy + 1 + 4, W = mat.islandWalnut;
+  cut(mat.soap);
+  B(137.6, 67.5, 36, x0 - 137.6, 43.5, 2, W); B(x0, y1, 36, x1 - x0, 111 - y1, 2, W); B(x1, 67.5, 36, 238.6 - x1, 43.5, 2, W);
+  outline(137.6, 67.5, 36, x0 - 137.6, 43.5, 2); outline(x0, y1, 36, x1 - x0, 111 - y1, 2); outline(x1, 67.5, 36, 238.6 - x1, 43.5, 2);
+  INFO = 'Option B: exposed soapstone around the prep sink - 3 right of the sink, 4 behind the faucet, ~16 drainboard on the left with grooves sloped to the sink; soapstone runs to the front edge.';
+  for (let i = 0; i < 6; i++) {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(13, .06, .45), M(0x1e2223, .5)); g.position.set(sx + sw + 8.5, 36.005, sy0 + 2 + i * (sd - 4) / 5);
+    g.rotation.z = -.012; g.userData.info = INFO; topSW.add(g); }
+  PARENT = prep;
+  INFO = copper ? 'OPTION (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep. Needs ~26 sink base: #11 re-split to about 21-1/2 + 25-1/2 openings (not yet drawn on A3).'
+                : 'Prep sink 18 (as drawn on A3). Option: Kevin 23 copper Orwell.';
+  const sm = copper ? mat.copper : mat.steel, d = 8.9;
+  B(sx, sy0, 27, sw, sd, .5, sm); B(sx, sy0, 27, .5, sd, d, sm); B(sx + sw - .5, sy0, 27, .5, sd, d, sm);
+  B(sx, sy0, 27, sw, .5, d, sm); B(sx, sy1 - .5, 27, sw, .5, d, sm);
+  const c = new THREE.CatmullRomCurve3([[sx + sw / 2, 36, fy], [sx + sw / 2, 46, fy], [sx + sw / 2, 48.5, fy - 2.5], [sx + sw / 2, 46, fy - 6.5]].map(p => new THREE.Vector3(...p)));
+  const f = new THREE.Mesh(new THREE.TubeGeometry(c, 30, .38, 10), mat.hw); f.castShadow = true; f.userData.info = 'Prep faucet - illustrative'; prep.add(f);
+  PARENT = savedP; EDGE = savedE;
+}
+buildIslandTop(18, 16, false);
+topSW.visible = false;
+PARENT = island; EDGE = true;
+// stools (decorative)
+const stools = new THREE.Group(); island.add(stools);
+PARENT = stools; INFO = 'Counter stools - decorative only.'; EDGE = false;
+for (const x of [158, 182, 206]) {
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.5, 32), mat.walnut); seat.position.set(x, 25.5, 117); seat.castShadow = true; seat.userData.info = INFO; stools.add(seat);
+  for (const [dx, dy] of [[-5.5, -5.5], [5.5, -5.5], [-5.5, 5.5], [5.5, 5.5]]) {
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(.55, .7, 25, 10), mat.black); l.position.set(x + dx, 12.5, 117 + dy); l.castShadow = true; stools.add(l);
+  }
+  B(x - 6, 116.5, 9, 12, 1, .6, mat.black);
+}
+// ---------- lighting: low-voltage tensioned cable system between the beams (no joist cavity) + island pendants ----------
+const lighting = new THREE.Group(), cableLights = new THREE.Group(); scene.add(lighting, cableLights);
+{
+  const nickelM = M(0xc9c7c0, .3, .9), bronze = M(0x6b4f33, .35, .8), shadeMat = M(0xf4f1ea, .55, 0, { side: THREE.DoubleSide }), cord = M(0x2b2622, .8);
+  const CINFO = 'Low-voltage tensioned cable lighting (like the reference photo): two taut cables ~4 apart run in each bay between the beams, parallel to them, with adjustable heads. Standoffs at both end walls, transformer on the wall - no joist cavity needed. Example systems: Tech Lighting Kable Lite, WAC. Head count / layout TBD with electrician.';
+  const add = (g, m) => { m.castShadow = false; m.userData.info = CINFO; g.add(m); return m; };
+  const xa = 4, xb = 295, z = 98;                                  // cable height, run from the entry wall to the end wall
+  const bays = [[28.4, 4], [67.75, 6], [113.8, 6]];                // [bay center Y (between beams), heads]
+  for (const [yc, n] of bays) {
+    for (const dy of [-2, 2]) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, xb - xa, 6), nickelM); c.rotation.z = Math.PI / 2;
+      c.position.set((xa + xb) / 2, z, yc + dy); add(cableLights, c);
+      for (const x of [xa, xb]) { const so = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 101 - z, 10), nickelM); so.position.set(x, (101 + z) / 2, yc + dy); add(cableLights, so); }
+    }
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(1.5, 5, 7), nickelM); tr.position.set(298.2, 92, yc); add(cableLights, tr);
+    for (let i = 0; i < n; i++) {
+      const x = xa + 30 + i * ((xb - xa - 60) / (n - 1));
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, 4.4), nickelM); bar.position.set(x, z - .1, yc); add(cableLights, bar);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 2.6, 6), nickelM); stem.position.set(x, z - 1.4, yc); add(cableLights, stem);
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.15, 2.4, 16), nickelM); head.position.set(x, z - 3.6, yc); head.rotation.x = (i % 2 ? .25 : -.25); add(cableLights, head);
+      const lamp = new THREE.Mesh(new THREE.CircleGeometry(.95, 16), mat.led); lamp.rotation.x = Math.PI / 2; lamp.position.set(x, z - 4.85, yc); cableLights.add(lamp);
+      const sp = new THREE.SpotLight(0xffe4bc, 260, 0, .45, .7, 2); sp.position.set(x, z - 5, yc); sp.target.position.set(x, 0, yc + (i % 2 ? 10 : -10)); cableLights.add(sp, sp.target);
+    }
+  }
+  // island pendants (Kevin's design board: Visual Comfort Aerin Sloane Large) - canopies on the center beam
+  const PINFO = 'Island pendants (Kevin design board): Visual Comfort Aerin Sloane Large x2 - example. Bottom ~30 above island top. Canopies on the underside of the center beam; feed from the low-voltage cable run / electrician to confirm.';
+  for (const x of [168.1, 208.1]) {
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, .8, 24), bronze); can.position.set(x, 95.1, 90); can.userData.info = PINFO; lighting.add(can);
+    const drop = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 95.1 - 75, 8), cord); drop.position.set(x, (95.1 + 75) / 2, 90); drop.userData.info = PINFO; lighting.add(drop);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 2.2, 20), bronze); cap.position.set(x, 74.6, 90); cap.userData.info = PINFO; lighting.add(cap);
+    const pts = []; for (let i = 0; i <= 16; i++) { const a2 = i / 16 * Math.PI / 2; pts.push(new THREE.Vector2(1.4 + 7.6 * Math.sin(a2) ** 1.4, 74 - 8 * (1 - Math.cos(a2)) - (i === 16 ? .3 : 0))); }
+    const shade = new THREE.Mesh(new THREE.LatheGeometry(pts, 48), shadeMat); shade.position.set(x, 0, 90); shade.castShadow = true; shade.userData.info = PINFO; lighting.add(shade);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 12), mat.led); bulb.position.set(x, 68.5, 90); lighting.add(bulb);
+    const pl = new THREE.PointLight(0xffe2b8, 900, 0, 2); pl.position.set(x, 67, 90); lighting.add(pl);
+  }
+}
+// island paint option: its own material so the island can take an accent color
+mat.islandPaint = mat.paint.clone();
+island.traverse(o => { if (o.material === mat.paint) o.material = mat.islandPaint; });
+// Kevin's requested shift (open): ghost outline + toggle
+PARENT = scene; INFO = 'Kevin request (open): island shifted 24-3/4 toward the end wall to center between range and sink. Leaves ~35-3/4 to the end wall. Ryan to decide.';
+const ghost = new THREE.Group(); scene.add(ghost); groups.ghost = ghost;
+{ const g = new THREE.BoxGeometry(101, 36, 43.5), l = new THREE.LineSegments(new THREE.EdgesGeometry(g),
+    new THREE.LineDashedMaterial({ color: 0x1f6fb5, dashSize: 3, gapSize: 2 }));
+  l.computeLineDistances(); l.position.set(137.6 + 24.7 + 50.5, 18, 67.5 + 21.75); ghost.add(l);
+  const m = new THREE.Mesh(g, mat.clear); m.position.copy(l.position); m.userData.info = INFO; ghost.add(m);
+  ghost.add(label("Kevin's shift option", 137.6 + 24.7 + 50.5, 89, 40, .032, '#ffffff', 'rgba(31,111,181,.9)')); }
+ghost.visible = false;
+const SHIFT = 24.7;
+
+// ---------- cabinet tags ----------
+for (const [t, X, Y, Z] of [['#1', 49, 132, 26], ['#2', 11, 105, 26], ['#3', 12, 21.5, 42], ['#4', 85, 26, 99], ['#5', 121, 26, 99],
+  ['#6', 150, 26, 42], ['#7', 205, 26, 42], ['#8', 150, 14, 50], ['#10', 204, 14, 50], ['#16', 291.5, 14, 50],
+]) tag(t, X, Y, Z);
+const islandTags = new THREE.Group(); island.add(islandTags);
+for (const [t, X] of [['#11', 169], ['#14', 209]]) islandTags.add(label(t, X, 64, 42, .036, '#ffffff', 'rgba(31,74,110,.92)'));
+
+// ---------- dimensions ----------
+const dz = 1, dy = 30;
+const run = [[195.125, 230.5], [230.5, 266.5], [266.5, 268], [268, 292], [292, 294], [294, 299]];
+run.forEach(([a, b], i) => dim([a, dy + (i % 2) * 6, dz], [b, dy + (i % 2) * 6, dz]));
+dim([195.125, 44, dz], [299, 44, dz], '#7 run 103 7/8');
+dim([248.5, 4, 88], [299, 4, 88], 'window / sink CL to wall 50 1/2', dims, undefined);
+dim([210, 25, dz], [210, 67.5, dz], 'aisle 42 1/2', dims, undefined, [1.5, 0, 0]);
+dim([0, 160, dz], [299, 160, dz], '299 main wall', dims, undefined);
+dim([193, 1, 66], [193, 1, 36], 'hood 30 above range', dims, undefined, [1.5, 0, 0]);
+dim([292, 25, 14], [294, 25, 14], '2 stile', dims, undefined, [0, 0, 1.5]);
+dim([294, 24, 9], [299, 24, 9], '5 filler rec. 1', dims, undefined, [0, 0, 1.5]);
+const gap = new THREE.Group(); dims.add(gap);
+const gapNow = new THREE.Group(); gap.add(gapNow); dim([238.6, 89, dz], [299, 89, dz], 'island end to wall ~60 3/8', gapNow, undefined);
+const gapShift = new THREE.Group(); gap.add(gapShift); dim([263.3, 89, dz], [299, 89, dz], 'shifted: ~35 3/4 to wall', gapShift, undefined); gapShift.visible = false;
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xf4f1ea, 0x9a8f80, .75));
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.6);
+sun.position.set(300, 150, -110); sun.target.position.set(215, 0, 90);
+Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 10, far: 900 });
+sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0004; sun.shadow.normalBias = .6; sun.castShadow = true;
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0xe8eefc, .55); fill.position.set(-120, 140, 260); scene.add(fill);
+
+// ---------- views & toggles ----------
+const VIEWS = {
+  'Overview': [[40, 175, 300], [170, 25, 70]],
+  'Main wall': [[150, 58, 190], [150, 52, 0]],
+  'Sink & DW end': [[258, 46, 64], [282, 28, 18]],
+  'Filler detail': [[268, 30, 58], [294, 17, 22]],
+  'Range & hood': [[177, 58, 100], [177, 68, 0]],
+  'Island work side': [[178, 62, 22], [190, 30, 90]],
+  'Island seating': [[190, 60, 180], [190, 28, 85]],
+  'Island #15 end': [[70, 48, 89], [150, 22, 89]],
+  'Island #13 end': [[290, 48, 105], [215, 20, 89]],
+  'Island corner': [[275, 58, 165], [200, 22, 90]],
+  'Drop zone & bench': [[110, 62, 70], [10, 45, 60]],
+  'Bench & table': [[125, 60, 55], [40, 20, 110]],
+  'Cable lighting': [[20, 62, 150], [200, 92, 60]],
+  'Plan': [[150, 340, 93], [150, 0, 92]],
+};
+let tween = null;
+function go(name) {
+  const [p, t] = VIEWS[name];
+  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...p), t1: new THREE.Vector3(...t), s: performance.now() };
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.textContent === name));
+}
+const vbar = document.getElementById('views');
+Object.keys(VIEWS).forEach(n => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => go(n); vbar.append(b); });
+const toggles = {
+  'Labels': { on: true, f: v => { tags.visible = v; islandTags.visible = v; } },
+  'Dimensions': { on: true, f: v => dims.visible = v },
+  'Beams & soffit area': { on: true, f: v => ceiling.visible = v },
+  'Ceiling': { on: true, f: v => ceil.visible = v },
+  'Line work': { on: true, f: v => edges.forEach(e => e.visible = v) },
+  'Soft shadows (AO)': { on: true, f: v => photo = v },
+  "Kevin's shift (outline)": { on: false, f: v => ghost.visible = v && !island.position.x },
+  "Kevin's shift (move island)": { on: false, f: v => { island.position.x = v ? SHIFT : 0; ghost.visible = !v && toggles["Kevin's shift (outline)"].on; gapNow.visible = !v; gapShift.visible = v; } },
+  'Stools & props': { on: true, f: v => { props.visible = v; stools.visible = v; } },
+  'Table & chairs': { on: true, f: v => dining.visible = v },
+  'Cable lighting (between beams)': { on: true, f: v => cableLights.visible = v },
+  'Island pendants': { on: true, f: v => lighting.visible = v },
+  'Island B: soapstone + walnut on top (off = A quartzite)': { on: false, f: v => { topSW.visible = v; topStone.visible = !v; } },
+  'Hood band / shelves / #3 top: reclaimed red oak': { on: false, f: v => { const w = WOOD[v ? 'reclaimed' : 'walnut']; mat.nat.map = w[0]; mat.nat.bumpMap = w[1]; mat.nat.roughness = v ? .7 : .5; mat.nat.needsUpdate = true; } },
+};
+toggles.Beams = toggles['Beams & soffit area'];
+const tbar = document.getElementById('toggles');
+for (const [n, t] of Object.entries(toggles)) {
+  if (n === 'Beams') continue;
+  const b = document.createElement('button'); b.textContent = n; b.classList.toggle('on', t.on);
+  b.onclick = () => { t.on = !t.on; b.classList.toggle('on', t.on); t.f(t.on); }; tbar.append(b); t.f(t.on);
+}
+
+// ---------- island color options (screen approximations - verify with physical chips) ----------
+const ISLAND_COLORS = [['White Dove (match)', 0xefebe0], ['BM Palladian Blue HC-144', 0xaec6ba],
+                       ['BM Wythe Blue HC-143', 0x95b4aa], ['SW Sea Salt 6204', 0xcdd6ca], ['BM Aqua Mist', 0xcfe3df],
+                       ['BM Windy Sky', 0xcddcdf], ['BM Caribbean Blue Water 2055-30', 0x2f7f9c], ['BM Boothbay Gray HC-165 (Kevin board)', 0x7b8d97],
+                       ['Reclaimed red oak island (Kevin board)', 'wood']];
+const cbar = document.getElementById('colors');
+ISLAND_COLORS.forEach(([n, c], i) => {
+  const b = document.createElement('button'); b.textContent = n; b.classList.toggle('on', i === 0);
+  b.style.borderLeft = `14px solid ${c === 'wood' ? '#a8664a' : '#' + c.toString(16).padStart(6, '0')}`;
+  b.onclick = () => {
+    islandColor = i === 0 ? null : c;
+    if (c === 'wood') { mat.islandPaint.map = WOOD.reclaimed[0]; mat.islandPaint.color.setHex(0xffffff); }
+    else { mat.islandPaint.map = null; mat.islandPaint.color.setHex(i === 0 ? mat.paint.color.getHex() : c); }
+    mat.islandPaint.needsUpdate = true; cbar.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
+  cbar.append(b);
+});
+
+// ---------- design options (Kevin's design boards 9/24 + 10/25, Ryan's base design) ----------
+const obar = document.getElementById('optbars');
+function optionBar(title, opts, pick, def = 0) {
+  const d = document.createElement('div'); d.className = 'bar'; d.innerHTML = `<span>${title}</span>`; obar.append(d);
+  opts.forEach(([n, v], i) => {
+    const b = document.createElement('button'); b.textContent = n; b.classList.toggle('on', i === def);
+    b.onclick = () => { pick(v); d.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
+    d.append(b);
+  });
+  pick(opts[def][1]);
+}
+let islandColor = null;
+optionBar('Cabinet color', [['White Dove (assumed)', 0xefebe0], ['BM Chantilly Lace OC-65 (Kevin board)', 0xf5f4ee]],
+  c => { mat.paint.color.setHex(c); if (islandColor === null) mat.islandPaint.color.setHex(c); });
+optionBar('Hardware', [['Nickel', [0xb9b6ad, .28, .9]], ['Brushed bronze (Kevin 9/24)', [0x8a6a44, .38, .85]], ['Matte black (Kevin 10/25)', [0x1d1d1d, .6, .3]]],
+  ([c, r, m]) => { mat.hw.color.setHex(c); mat.hw.roughness = r; mat.hw.metalness = m; });
+optionBar('Uppers at sink (#10, #16)', [['Shaker panel', false], ['Glass front (Kevin 10/25 board)', true]],
+  v => { glassPanels.forEach(p => p && (p.material = v ? mat.glassDoor : mat.paint)); glassShelves.forEach(sh => sh.visible = v); });
+optionBar('Main sink', [['Matte black - Nantucket T-PS36MB (Kevin)', 0x232323], ['White fireclay', 0xf7f7f3]], c => mat.ceramic.color.setHex(c));
+optionBar('Prep sink', [['18 stainless (as drawn)', [18, 16, false]], ['23 hammered copper - Sinkology Orwell (Kevin 10/25)', [23, 17.75, true]]],
+  ([w, d, cu]) => buildIslandTop(w, d, cu));
+optionBar('Hood', [['Custom paneled hood, walnut band (Ryan)', false], ['Cafe CBW36YIEWW6 matte white (Kevin ref.)', true]],
+  v => { hoodCustom.visible = !v; hoodCafe.visible = v; });
+
+// ---------- picking ----------
+const ray = new THREE.Raycaster(); ray.params.Line.threshold = 0; const info = document.getElementById('info');
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e => down = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera);
+  const shown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const hit = ray.intersectObjects([cabinetry, island, shell, ceiling, props, dining, lighting, cableLights], true).find(h => h.object.isMesh && shown(h.object));
+  info.textContent = hit?.object.userData.info ?? 'Walls existing. Floor: wide-plank character-grade white oak, natural finish - installed before cabinets.';
+});
+
+// ---------- loop ----------
+// ambient occlusion for contact shadows in corners, under tops and around doors
+const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera); gtao.updateGtaoMaterial({ radius: 6, distanceExponent: 1.5, thickness: 4, scale: 1.2 }); composer.addPass(gtao);
+composer.addPass(new OutputPass());
+function resize() { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); composer.setSize(w, h); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px'; camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(wrap); resize();
+camera.position.set(...VIEWS.Overview[0]); controls.target.set(...VIEWS.Overview[1]); go('Overview'); tween = null;
+renderer.setAnimationLoop(() => {
+  if (tween) {
+    const k = Math.min(1, (performance.now() - tween.s) / 900), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.t0, tween.t1, e); if (k === 1) tween = null;
+  }
+  frame();
+});
+function frame() {
+  controls.update();
+  for (const w of walls) w.g.visible = !(camera.position[w.axis] * w.sign > w.v * w.sign);
+  ceil.visible = camera.position.y <= 101 && toggles.Ceiling.on;
+  ceiling.visible = toggles.Beams.on && camera.position.y < 260;   // beams drop out in plan view
+  if (photo) composer.render(); else renderer.render(scene, camera);
+}
+window.__viewer = { frame, controls, go, scene, camera, renderer, toggles, walls, ceil };
+console.log('viewer ready', scene.children.length);
+</script>
+</body>
+</html>
