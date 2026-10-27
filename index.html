@@ -209,25 +209,37 @@ function knob(X, Y, Z) {
 function pull(X, Y, Z, len, vertical = false) {        // bar pull
   B(vertical ? X - .25 : X - len / 2, Y - .25, vertical ? Z - len / 2 : Z - .25, vertical ? .5 : len, .5, vertical ? len : .5, mat.hw, { edges: false });
 }
-// Inset shaker face on a plane of constant Y. dir=+1 faces the room (+Y), -1 faces the main wall.
-function face(X, Z, w, h, y, dir = 1, kind = 'door', kn = 'R') {
-  const seg = (a, b) => dir > 0 ? [y + a, b - a] : [y - b, b - a];
-  const [ry, rd] = seg(-.02, .03); B(X, ry, Z, w, rd, h, mat.reveal, { cast: false, edges: false });
-  const g = .125, x0 = X + g, z0 = Z + g, W = w - 2 * g, H = h - 2 * g;
-  if (kind === 'drawer' && h <= 7.5 || kind === 'slab') { const [fy, fd] = seg(.03, .32); B(x0, fy, z0, W, fd, H); }
+// Flush inset shaker front (Ryan 10/27): 3/4 thick, its face in the plane of the face frame, 1/8 reveal all round.
+// Five-piece: 3/4 stiles / rails flush with the frame, flat panel recessed 1/4. 'slab' / short drawers: 3/4 solid; 'flat': recessed flat panel only.
+// (a, z, w, h) = the frame OPENING (o.raw: the front's own extents); plane = the frame's outer face; dir=+1 faces +axis.
+// o.axis 'y' (default): constant-Y plane, a = X; 'x': constant-X plane, a = Y. o.kz: knob height. o.plate=false: no dark reveal backing.
+function face(a, z, w, h, plane, dir = 1, kind = 'door', kn = 'R', o = {}) {
+  const T = .75, ax = o.axis ?? 'y';
+  const M = (a0, z0, len, hh, d0, d1, m = mat.paint, opt = {}) => ax === 'y'       // box between depths d0..d1 behind the face plane
+    ? B(a0, dir > 0 ? plane - d1 : plane + d0, z0, len, d1 - d0, hh, m, opt)
+    : B(dir > 0 ? plane - d1 : plane + d0, a0, z0, d1 - d0, len, hh, m, opt);
+  if (o.plate !== false) M(a, z, w, h, T - .02, T, mat.reveal, { cast: false, edges: false });
+  const g = o.raw ? 0 : .125, a0 = a + g, z0 = z + g, W = w - 2 * g, H = h - 2 * g;
+  let panel;
+  if (kind === 'slab' || kind === 'drawer' && h <= 7.5) M(a0, z0, W, H, 0, T);
+  else if (kind === 'flat') panel = M(a0, z0, W, H, .25, T);
   else {
-    const r = Math.min(2.25, W / 4, H / 4), [fy, fd] = seg(.03, .42), [py, pd] = seg(.03, .2);
-    B(x0, fy, z0, r, fd, H); B(x0 + W - r, fy, z0, r, fd, H);
-    B(x0 + r, fy, z0, W - 2 * r, fd, r); B(x0 + r, fy, z0 + H - r, W - 2 * r, fd, r);
-    var panel = B(x0 + r, py, z0 + r, W - 2 * r, pd, H - 2 * r);
+    const r = Math.min(2.25, W / 4, H / 4);
+    M(a0, z0, r, H, 0, T); M(a0 + W - r, z0, r, H, 0, T); M(a0 + r, z0, W - 2 * r, r, 0, T); M(a0 + r, z0 + H - r, W - 2 * r, r, 0, T);
+    panel = M(a0 + r, z0 + r, W - 2 * r, H - 2 * r, .25, T);
   }
   if (kn) {
-    const kx = kind === 'drawer' ? X + w / 2 : (kn === 'R' ? X + w - 1.9 : X + 1.9);
-    const kz = kind === 'drawer' ? Z + h / 2 : (Z >= 38 ? Z + 3 : Z + h - 3);   // tall / upper doors: knob 3 above the door bottom (reachable)
-    knob(kx, y + dir * 1.05, kz);
+    const rightHi = (ax === 'y') === (dir > 0);                                    // is the viewer's right the larger coordinate?
+    const ka = kind === 'drawer' ? a + w / 2 : ((kn === 'R') === rightHi ? a + w - 1.9 : a + 1.9);
+    const kz = o.kz ?? (kind === 'drawer' ? z + h / 2 : (z >= 38 ? z + 3 : z + h - 3));   // upper / tall doors: knob 3 above the door bottom (reachable)
+    if (ax === 'y') knob(ka, plane + dir * .45, kz); else knob(plane + dir * .45, ka, kz);
   }
   return panel;
 }
+// 3/4 face-frame member flush with its plane: constant-Y plane (x0..x1 along X) or constant-X plane (y0..y1 along Y, facing +X).
+const FY = (x0, x1, z0, z1, yFace = 24, dir = 1) => B(x0, dir > 0 ? yFace - .75 : yFace, z0, x1 - x0, .75, z1 - z0);
+const FX = (y0, y1, z0, z1, xFace = 24) => B(xFace - .75, y0, z0, .75, y1 - y0, z1 - z0);
+const plateY = (x, z, w, h, yFace = 24) => B(x, yFace - .75, z, w, .02, h, mat.reveal, { cast: false, edges: false });   // dark reveal backing for a stack of fronts
 // Shaker end panel members 1/4 proud on a constant-X ('x') or constant-Y ('y') plane c, facing dir; spans a0..a1, z0..z1.
 // Ryan 10/26 standard - base: 2 stiles, 1-1/2 top, 5-1/2 bottom; upper: 2 all round; tall: 2 stiles / top, 5-1/2 bottom, 1-1/2 midrail at 33-1/4.
 function endPanel(axis, c, dir, a0, a1, z0, z1, st, top, bot, mid = null, mullions = []) {
@@ -276,55 +288,84 @@ PARENT = wEnd; B(299, 0, 0, 5, 183.5, 101, mat.wall);                          /
 PARENT = wEntry; B(-5, -5, 0, 5, 58.9, 101, mat.wall); B(-5, 84.5, 0, 5, 64.5, 101, mat.wall); // entry wall with window 53.9..84.5
 B(-5, 53.9, 0, 5, 30.6, 43.7, mat.wall); B(-5, 53.9, 81, 5, 30.6, 20, mat.wall);
 INFO = 'Entry wall window - existing (A2: sill 43-3/4, head 81).'; B(-3, 53.9, 43.7, .3, 30.6, 37.3, mat.glass, { cast: false });
-B(0, 51.9, 42, 1.5, 34.6, .9);
+INFO = 'Entry window trim (R3 CV): stool and apron only, no casing. 3/4 stool Y 49.35-89.05 projecting 2-1/2, 3-1/2 apron below it (Ryan 10/27).';
+EDGE = true; B(0, 49.35, 42.95, 2.5, 39.7, .75); B(0, 50.3, 39.45, .75, 37.8, 3.5); EDGE = false;
 PARENT = wLeft; INFO = null; B(0, 144, 0, 97.5, 5, 101, mat.wall);
 PARENT = wBack; B(97.5, 144, 0, 6, 39.5, 101, mat.wall); B(103.5, 177.5, 0, 122.5, 6, 101, mat.wall);
 PARENT = wMain; INFO = 'Existing window - HOLD (possible new double). Casing 65-5/8 wide; sink and window share centerline 248-1/2.';
 B(219.75, -3, 44, 57.6, .3, 37, mat.glass, { cast: false });
 B(248.4, -2.8, 44, .2, .2, 37, mat.paint);
 EDGE = true;
-B(215.75, 0, 40, 4, .75, 45.8); B(277.35, 0, 40, 4, .75, 45.8); B(215.75, 0, 81, 65.6, .75, 4.8); B(214.5, 0, 43.2, 68.1, 2.5, .8);
-INFO = 'Pantry passage door - opening 36 (was 32). Verify casing on site.';
-B(25, 0, 0, 3.5, .75, 84.5); B(64.5, 0, 0, 3.5, .75, 84.5); B(25, 0, 80, 43, .75, 4.5);
+INFO = 'Sink window trim (R3 CV job): 3-1/2 x 3/4 casing legs with a 1/8 reveal to the glass, 4-1/2 head 1/4 past the legs, 3/4 stool with 1 horns past the casing projecting 2-1/2, 3-1/2 apron sitting on the 4 splash.';
+B(216.125, 0, 44, 3.5, .75, 37.25); B(277.475, 0, 44, 3.5, .75, 37.25);       // legs Z 44-81.25
+B(215.875, 0, 81.25, 65.35, .75, 4.5);                                       // head Z 81.25-85.75
+B(215.125, 0, 43.25, 66.85, 2.5, .75);                                       // stool Z 43.25-44
+B(216.125, 0, 40, 64.85, .75, 3.25);                                         // apron Z 40-43.25
+INFO = 'Pantry passage door - opening 36 (X 28.5-64.5) x 80. Casing 3-1/2 x 3/4 (R3 CV): legs to 80, 4-1/2 head 1/4 past the legs (X 24.75-68.25, Z 80-84.5). Verify casing on site.';
+B(25, 0, 0, 3.5, .75, 80); B(64.5, 0, 0, 3.5, .75, 80); B(24.75, 0, 80, 43.5, .75, 4.5);
 B(28.6, -2.5, .3, 35.8, 1.5, 79.4);
-face(32, 7, 29, 29, -1, 1, 'door', ''); face(32, 41, 29, 34, -1, 1, 'door', ''); knob(61.3, -.2, 37);
+face(32, 7, 29, 29, -.25, 1, 'door', '', { plate: false }); face(32, 41, 29, 34, -.25, 1, 'door', '', { plate: false }); knob(61.3, .2, 37);
 PARENT = ceiling; EDGE = false; INFO = 'Existing ceiling beams - painted white. Spacer removal pending structural check.';
 for (const y of [42.7, 87.2, 134.8]) B(0, y, 95.5, 299, 5.6, 5.5, mat.beam);
 INFO = 'Existing cross beam (R3) - 3-1/2 wide, bottom 86-1/4, perpendicular to the main wall; dies into the #5 refrigerator top rail. Paint white.';
-B(136.6, 24, 86.25, 3.5, 153.5, 14.75, mat.beam);
+B(136.6, 24.75, 86.25, 3.5, 152.75, 14.75, mat.beam);
 INFO = null;
 const ceil = B(-5, -5, 101, 309, 188.5, 2, mat.wall, { cast: false, parent: scene }); ceil.visible = false;
 
 // ---------- main wall cabinetry (A1) ----------
 PARENT = cabinetry; EDGE = true;
-const toe = (x0, x1, d = 21) => B(x0 + .5, 0, 0, x1 - x0 - 1, d, 4, mat.paint, { edges: false });   // toe kick in cabinet color
-INFO = '#4 Tall pantry 32 wide x 24 deep, to soffit at 95-1/2. Upper door knobs 3 above the door bottom (41 AFF) so they can be reached (Ryan 10/26).';
-B(69, 0, 4, 32, 24, 91.5); toe(69, 101);
-[[5.5, 9.25], [16.25, 9.25], [27, 9.25]].forEach(([z, h]) => face(71, z, 28, h, 24, 1, 'drawer'));
-face(71, 38, 14, 54.5, 24, 1, 'door', 'R'); face(85, 38, 14, 54.5, 24, 1, 'door', 'L');
-INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). 35-3/4 W x 83-7/8 H x 24-3/4 D; cutout 36 x 84 x 25 - panel template TBD.';
-B(101, 0, 0, 40, 24, 95.5);
-face(103, 34.44, 36, 49.56, 24, 1, 'door', ''); knob(137.1, 25.05, 41);   // fridge knob at 41 AFF, level with the pantry knobs (Ryan 10/26)
-face(103, 24, 36, 9.81, 24, 1, 'drawer', ''); face(103, 4, 36, 19.4, 24, 1, 'drawer', ''); pull(121, 25.5, 21, 18);
+const toe = (xa, xb, d = 21) => B(xa, 0, 0, xb - xa, d, 4, mat.paint, { edges: false });   // 4 toe kick in cabinet color, recessed 3 behind the frame plane (between the floor stiles)
+INFO = '#4 Tall pantry X 70.5-103 (2-1/2 from the door casing), 24 deep, to the soffit at 95-1/2. LS 2 | 28-1/2 opening | 2 stile shared with #5, stiles to the floor, 4 toe. Mid rail 1-1/2 at 33-1/4 (in line with the base top rails): three drawer fronts below in one opening (no rails between them), pair of doors above to the 2 top rail at 93-1/2. Flush inset 3/4 fronts. Door knobs 41 AFF. Behind the doors: 2 rollouts (4 tall, 12 clear between) and 2 adjustable shelves.';
+B(70.5, 0, 4, 30.5, 23.25, 91.5); toe(72.5, 101);
+FY(70.5, 72.5, 0, 95.5); FY(101, 103, 0, 95.5);
+FY(72.5, 101, 4, 5.5); FY(72.5, 101, 33.25, 34.75); FY(72.5, 101, 93.5, 95.5);
+plateY(72.5, 5.5, 28.5, 27.75);
+{ const dh = (27.75 - 2 * .125) / 3;                                         // 9.1667 each, 1/8 between
+  for (let k = 0; k < 3; k++) face(72.625, 5.5 + k * (dh + .125), 28.25, dh, 24, 1, 'drawer', 'R', { raw: true, plate: false }); }
+face(72.5, 34.75, 14.25, 58.75, 24, 1, 'door', 'R', { kz: 41 }); face(86.75, 34.75, 14.25, 58.75, 24, 1, 'door', 'L', { kz: 41 });
+INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). 35-3/4 W x 83-7/8 H x 24-3/4 D; cutout 36 x 84 x 25. Surround X 101-141: shared 2 stile, 36 opening, 2 RS to the floor; frame face at Y 24-3/4 (A6), panels 3/4 behind it. Knob at 41 AFF (Ryan 10/26).';
+B(101, 0, 4, 40, 24, 91.5); toe(103, 139, 21.75);
+FY(101, 103, 0, 95.5, 24.75); FY(139, 141, 0, 95.5, 24.75);
+face(103, 34.44, 36, 49.56, 24.75, 1, 'door', ''); knob(137.1, 25.2, 41);
+face(103, 24, 36, 9.81, 24.75, 1, 'drawer', ''); face(103, 4, 36, 19.4, 24.75, 1, 'drawer', ''); pull(121, 25.0, 21, 18);
 INFO = '#5 Solid top rail 84 to 95-1/2 above the refrigerator (R3) - the existing cross beam dies into it, so no doors / panel here (Ryan 10/26).';
-B(101.5, 24, 84, 39, .1, 11.5, mat.paint, { edges: false });
-INFO = '#6 Base 18-1/8, three drawers.';
-B(141, 0, 4, 18.125, 24, 30.75); toe(141, 159.125);
+FY(103, 139, 84, 95.5, 24.75);
+INFO = '#6 Base 18-1/8, three drawers; LS and RS 2 to the floor, 1-1/2 mid rail at 26-1/4 under the top drawer. Flush inset fronts.';
+B(141, 0, 4, 18.125, 23.25, 30.75); toe(143, 157.125);
+FY(141, 143, 0, 34.75); FY(157.125, 159.125, 0, 34.75);
+for (const [z0, z1] of [[4, 5.5], [26.25, 27.75], [33.25, 34.75]]) FY(143, 157.125, z0, z1);
 [[27.75, 5.5], [15.875, 10.375], [5.5, 10.375]].forEach(([z, h]) => face(143, z, 14.125, h, 24, 1, 'drawer'));
 const glassPanels = [], glassShelves = [];
-function upper(x, w, num, kn = 'R') {
-  INFO = `${num} Upper ${frac(w)} wide x 12 deep x 41-1/2, stops at soffit. 1-1/2 bottom light rail with LED.` + (num !== '#16' ? ' Glass-front door either side of the range (Ryan 10/26); option shaker.' : ' Solid shaker door (Ryan 10/26).');
-  B(x, 0, 54, w, 12, 41.5); const pnl = face(x + 2, 56, w - 4, 36.5, 12, 1, 'door', kn);
-  if (num !== '#16') { glassPanels.push(pnl); for (const z of [67, 80]) { const sh = B(x + 1, 1, z, w - 2, 10.5, .75); sh.visible = false; glassShelves.push(sh); } }
-  B(x, 10.5, 52.5, w, 2.25, 1.5); B(x + 1, 1, 53.9, w - 2, 9, .1, mat.led, { cast: false, edges: false });
+// Typical Dillon light rail: A&M 607 (profile points: rabbet-back x, up y; Ryan 10/27). Extruded along X and returned at exposed ends.
+// World: Y = 12 + x, Z = 53.375 + y (upper frame bottom Z 54, frame face Y 12.75): 3/4 rabbet under the frame, 5/8 body, nose ~1/2 proud.
+const AM607 = [[0, 0], [0, .625], [.75, .625], [.75, .79], [.855, .79], [.867, .735], [.925, .657], [.993, .625], [.993, .534], [1.12, .493], [1.213, .391], [1.247, .26], [1.213, .134], [1.12, .034], [.993, 0]];
+function lightRail(x0, x1, retL, retR) {
+  const shape = new THREE.Shape(AM607.map(([px, py]) => new THREE.Vector2(px, py))), NOSE = 1.247, ZB = 53.375;
+  const put = (geo, m) => { geo.applyMatrix4(new THREE.Matrix4().set(...m)); const mesh = new THREE.Mesh(geo, mat.paint);
+    mesh.castShadow = mesh.receiveShadow = true; mesh.userData.info = INFO; PARENT.add(mesh); };
+  const xa = x0 - (retL ? NOSE : 0), xb = x1 + (retR ? NOSE : 0);
+  put(new THREE.ExtrudeGeometry(shape, { depth: xb - xa, bevelEnabled: false }), [0, 0, -1, xb, 0, 1, 0, ZB, 1, 0, 0, 12, 0, 0, 0, 1]);   // front run (shape x -> Y, y -> Z, depth -> -X)
+  if (retR) put(new THREE.ExtrudeGeometry(shape, { depth: 12, bevelEnabled: false }), [1, 0, 0, x1, 0, 1, 0, ZB, 0, 0, 1, 0, 0, 0, 0, 1]);          // return at the right end (profile outward +X, Y 0-12)
+  if (retL) put(new THREE.ExtrudeGeometry(shape, { depth: 12, bevelEnabled: false }), [-1, 0, 0, x0, 0, 1, 0, ZB, 0, 0, -1, 12, 0, 0, 0, 1]);       // return at the left end (outward -X)
 }
-upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10', 'L'); upper(284, 15, '#16', 'L');   // #10 hinged right (Ryan 10/26)
+function upper(x, w, num, kn = 'R', retL = false, retR = false) {
+  const zb = 54, zt = 95.5, glass = num !== '#16';
+  INFO = `${num} Upper ${frac(w)} wide x 12 deep x 41-1/2, stops at soffit. Face frame at Y 12-3/4, flush inset door. Typical A&M 607 light rail under the frame with LED.` + (glass ? ' Glass-front door either side of the range (Ryan 10/26); option shaker.' : ' Solid shaker door (Ryan 10/26).');
+  if (glass) {                                                               // hollow case so the glass shows the shelves
+    B(x, 0, zb, .75, 12, zt - zb); B(x + w - .75, 0, zb, .75, 12, zt - zb);
+    B(x + .75, 0, zb, w - 1.5, 12, .75); B(x + .75, 0, zt - .75, w - 1.5, 12, .75); B(x + .75, 0, zb + .75, w - 1.5, .5, zt - zb - 1.5);
+  } else B(x, 0, zb, w, 12, zt - zb);
+  FY(x, x + 2, zb, zt, 12.75); FY(x + w - 2, x + w, zb, zt, 12.75); FY(x + 2, x + w - 2, zb, zb + 2, 12.75); FY(x + 2, x + w - 2, 92.5, zt, 12.75);
+  const pnl = face(x + 2, 56, w - 4, 36.5, 12.75, 1, 'door', kn, { plate: false });
+  if (glass) { glassPanels.push(pnl); for (const z of [67, 80]) { const sh = B(x + .75, .5, z, w - 1.5, 11.5, .75); sh.visible = false; glassShelves.push(sh); } }
+  lightRail(x, x + w, retL, retR);
+  B(x + 1, 1, 53.9, w - 2, 9, .1, mat.led, { cast: false, edges: false });
+}
+upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10', 'L', false, true); upper(284, 15, '#16', 'L', true, false);   // #10 hinged right (Ryan 10/26)
 INFO = 'Upper end panels at the window - 2 stiles and 2 rails (Ryan 10/26).';
 endPanel('x', 213.25, 1, 0, 12, 54, 95.5, 2, 2, 2); endPanel('x', 284, -1, 0, 12, 54, 95.5, 2, 2, 2);
-INFO = '#4 Tall end panel - 2 stiles and top rail, 5-1/2 bottom rail, 1-1/2 midrail at base height giving a 27-3/4 bottom panel (Ryan 10/26).';
-endPanel('x', 69, -1, 0, 24, 0, 95.5, 2, 2, 5.5, 33.25);
-INFO = 'End stiles run to the floor on all cabinet ends (Ryan 10/25).';
-for (const x of [69, 99, 141, 157.125, 195.125]) B(x, 0, 0, 2, 24, 4);
+INFO = '#4 Tall end panel (X 70.5) - 2 stiles and top rail, 5-1/2 bottom rail, 1-1/2 midrail at 33-1/4 in line with the base top rails (Ryan 10/26, 10/27).';
+endPanel('x', 70.5, -1, 0, 24, 0, 95.5, 2, 2, 5.5, 33.25);
 INFO = 'Range: Cafe C2Y366P2TS1 36 dual-fuel (Kevin 10/25) - 31-1/8 deep with handle, 29-3/8 without. Hood bottom 30 above range top. Gas + 240V/30A.';
 EDGE = false;
 B(159.125, 0, 0, 36, 29.375, 35.5, mat.steel); B(163, 29.375, 6, 28, .3, 21, mat.black); B(159.125, 29.375, 29, 36, .6, 6, mat.steel);
@@ -359,21 +400,26 @@ PARENT = hoodCafe; INFO = 'OPTION: Cafe CBW36YIEWW6 36 commercial hood, matte wh
   B(171.125, 0, 84, 12, 10, 11.5, white); }
 hoodCafe.visible = false;
 PARENT = cabinetry;
-INFO = 'Soffit 14 deep x 5-1/2 at beam line (proposed), 69 to wall. Uppers stop at soffit.';
-B(69, 0, 95.5, 230, 14, 5.5);
-INFO = 'Soffit underside over sink: 3 equal panels (70-3/4 overall), one light each; center light on sink CL.';
-for (let i = 0; i < 3; i++) {
-  const x = 213.25 + i * 70.75 / 3;
-  B(x + .1, .1, 95.3, 70.75 / 3 - .2, 13.8, .2, mat.paint);
-  const lx = i === 1 ? 248.5 : x + 70.75 / 6;           // center light on sink CL (A1)
-  const d = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .25, 28), mat.led); d.position.set(lx, 95.15, 7); d.userData.info = INFO; PARENT.add(d);
-  const s = new THREE.SpotLight(0xffe2b0, 1.4, 0, .62, .65, 0); s.position.set(lx, 95, 7); s.target.position.set(lx, 30, 9);
+INFO = 'Soffit Z 95-1/2 to 101, wall to wall (X 0-299), including across the pantry door. 25-1/2 deep over the door, #4 and #5 (3/4 proud of the refrigerator surround face at 24-3/4); 13-1/2 deep from X 141 to the end wall (3/4 proud of the upper face frames at 12-3/4) (Ryan 10/27).';
+B(0, 0, 95.5, 141, 25.5, 5.5); B(141, 0, 95.5, 72.25, 13.5, 5.5); B(284, 0, 95.5, 15, 13.5, 5.5);
+INFO = 'Soffit underside over the sink (X 213-1/4 to 284): paneled - 2 rails and stiles all round, 1/4 recessed flat panels, 3 equal panels 20-11/16 wide (Y 2-11-1/2), one recessed light centered in each (A4, Ryan 10/27).';
+B(213.25, 0, 95.75, 70.75, 13.5, 5.25);                                     // body; its underside is the recessed panel face
+B(213.25, 0, 95.5, 70.75, 2, .25); B(213.25, 11.5, 95.5, 70.75, 2, .25);    // rear and front rails
+for (const ox of [0, 22.9167, 45.8333, 68.75]) B(213.25 + ox, 2, 95.5, 2, 9.5, .25);   // end stiles and 2 mullions
+for (const lx of [225.708, 248.625, 271.542]) {
+  const d = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .12, 28), mat.led); d.position.set(lx, 95.69, 6.75); d.userData.info = INFO; PARENT.add(d);
+  const s = new THREE.SpotLight(0xffe2b0, 1.4, 0, .62, .65, 0); s.position.set(lx, 95.5, 6.75); s.target.position.set(lx, 30, 9);
   scene.add(s, s.target);
 }
 // #7 sink run 195.125..299 (103-7/8)
-INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash pullout 16-1/4 | 36 apron sink (on window CL) | 2 stile | 24 DW | 2 stile | 4-1/2 recessed filler (Ryan 10/26).';
-B(195.125, 0, 4, 73.375, 24, 30.75); toe(195.125, 266.5); B(266.5, 0, 0, 2, 24, 4);   // 2 sink/DW stile to the floor, matches the stile right of the DW
-[[27.75, 5.5], [16.625, 10.875], [5.5, 10.875]].forEach(([z, h]) => face(197.125, z, 14.125, h, 24, 1, 'drawer'));
+INFO = '#7 Run 103-7/8: drawers 14-1/8 | trash pullout 16-1/4 | 36 apron sink (on window CL) | 2 stile | 24 DW | 2 stile | 4-1/2 recessed filler (Ryan 10/26). Flush inset fronts at Y 23-1/4 to 24; 1-1/2 mid rail at 26-1/4 under the top drawer, none between the two lower drawers (Ryan 10/27).';
+toe(197.125, 266.5); toe(268.5, 292.5);
+B(195.125, 0, 4, 35.375, 23.25, 30.75); B(230.5, 0, 4, 36, 23.25, 20.75); B(266.5, 0, 4, 2, 23.25, 30.75);   // case; the sink bay is open above the doors for the bowl
+FY(195.125, 197.125, 0, 34.75); FY(266.5, 268.5, 0, 34.75);                 // LS and the 2 sink/DW stile to the floor
+FY(211.25, 212.75, 4, 34.75); FY(229, 230.5, 4, 34.75);                     // 1-1/2 mullions
+for (const [a, b] of [[197.125, 211.25], [212.75, 229]]) for (const [z0, z1] of [[4, 5.5], [26.25, 27.75], [33.25, 34.75]]) FY(a, b, z0, z1);
+FY(230.5, 266.5, 4, 5.5); FY(230.5, 266.5, 23.5, 34.75);
+[[27.75, 5.5], [15.875, 10.375], [5.5, 10.375]].forEach(([z, h]) => face(197.125, z, 14.125, h, 24, 1, 'drawer'));
 INFO = '#7 Trash pullout 16-1/4 opening - pullout drawer front, never a door (R3 Kessebohmer double 36 qt - confirm fit).';
 face(212.75, 27.75, 16.25, 5.5, 24, 1, 'drawer'); face(212.75, 5.5, 16.25, 20.75, 24, 1, 'drawer');   // trash is always a pullout
 INFO = '#7 Sink base 39 between stiles - Nantucket Sinks T-PS36MB 36 matte black fireclay apron sink (Kevin 10/25), 36 x 19, 10 apron, centered on window CL 248-1/2. Maker recommends 39 min base: met.';
@@ -383,10 +429,10 @@ EDGE = false;
 B(230.5, 6, 24.75, 36, 19, .6, mat.ceramic); B(230.5, 6, 24.75, .9, 19.5, 10, mat.ceramic); B(265.6, 6, 24.75, .9, 19.5, 10, mat.ceramic);   // Nantucket 36 x 19, 10 apron
 B(230.5, 6, 24.75, 36, .9, 10, mat.ceramic); B(230.5, 24.6, 24.75, 36, 1, 10, mat.ceramic);
 EDGE = true;
-INFO = 'Dishwasher: Cafe CDT858I6ZII 24 panel-ready, custom panel + handle (Kevin 10/25). Opening 24 W x 33-1/2 H x 24 D; panel template TBD.';
-B(268.5, 0, 4, 24, 23.9, 30.75, mat.reveal, { edges: false }); face(268.5, 4, 24, 30.75, 24, 1, 'door', ''); pull(280.5, 25.5, 31.5, 12);
+INFO = 'Dishwasher: Cafe CDT858I6ZII 24 panel-ready, custom panel + handle (Kevin 10/25). Opening 24 W x 33-1/2 H x 24 D; panel template TBD. Panel flush inset at Y 23-1/4 to 24.';
+B(268.5, 0, 4, 24, 23.25, 30.75, mat.reveal, { edges: false }); face(268.5, 4, 24, 30.75, 24, 1, 'door', ''); pull(280.5, 24.25, 31.5, 12);
 INFO = 'NEW 10/25: 2 face stile right of the DW, flush with the face frame, floor to counter.';
-B(292.5, 23, 0, 2, 1, 34.75);
+FY(292.5, 294.5, 0, 34.75);
 INFO = '4-1/2 filler recessed 1 behind the 2 stile face, to the floor with baseboard, scribed to the end wall.';
 B(293.75, 22.25, 0, 5.25, .75, 34.75); B(294.5, 23, 0, 4.5, .5, 4);
 INFO = 'Perimeter countertops: white quartzite (Kevin 10/25). Edge / 4 splash TBD.';
@@ -401,37 +447,33 @@ INFO = 'Faucet - illustrative.';
   const f = new THREE.Mesh(new THREE.TubeGeometry(c, 40, .45, 12), mat.hw); f.castShadow = true; f.userData.info = INFO; props.add(f); }
 
 // ---------- entry wall (A2): drop zone #3 and bench #1 / #2 ----------
-INFO = '#3 Drop zone 43 - counter height, walnut top. Paneled 24 drink fridge + 15 ice maker (models TBD), walnut shelves at 54 and 69-1/4.';
-B(0, 0, 0, 23.9, 1.25, 34.5); B(0, 16.25, 0, 23.9, 1.5, 34.5); B(0, 41.75, 0, 23.9, 1.25, 34.5); B(0, 0, 34.5, 24, 43, .25);
-// paneled appliance fronts (shaker, face on the X = 24 plane)
-function faceX(y, z, w, h, kn) {
-  B(24, y, z, .03, w, h, mat.reveal, { cast: false, edges: false });
-  const g = .125, y0 = y + g, z0 = z + g, W = w - 2 * g, H = h - 2 * g, r = Math.min(2.25, W / 4, H / 4);
-  B(24, y0, z0, .42, r, H); B(24, y0 + W - r, z0, .42, r, H); B(24, y0 + r, z0, .42, W - 2 * r, r); B(24, y0 + r, z0 + H - r, .42, W - 2 * r, r);
-  B(24, y0 + r, z0 + r, .2, W - 2 * r, H - 2 * r);
-  if (kn) knob(25.05, kn < 0 ? y + 1.9 : y + w - 1.9, z + h - 3);
-}
-INFO = '#3 Paneled 24 under-counter drink fridge (panel-ready, model TBD).';
-B(0, 17.75, 0, 23.5, 24, 34.5, mat.reveal, { edges: false }); faceX(17.75, 0, 24, 34.5, 1);
-INFO = '#3 Paneled 15 ice maker (panel-ready, model TBD).';
-B(0, 1.25, 0, 23.5, 15, 34.5, mat.reveal, { edges: false }); faceX(1.25, 0, 15, 34.5, -1);
+INFO = '#3 Drop zone 43 - counter height, 24 deep. Face frame at X 24: LS 2 at the open end, RS 1 at the main wall, 1 mullion, 1-1/2 top rail, typical 4 appliance toe kick recessed 3 (Ryan 10/27). Panel-ready 24 drink fridge + 15 ice maker (models HOLD): flush inset painted shaker panels. Walnut top with a 1 overhang at the open end; walnut shelves at 54 and 69-1/4.';
+B(0, 0, 4, 23.25, 43, 30.75); B(0, 1, 0, 21, 40, 4, mat.paint, { edges: false });
+FX(41, 43, 0, 34.75); FX(0, 1, 0, 34.75); FX(16, 17, 4, 33.25); FX(1, 41, 33.25, 34.75);
+INFO = '#3 Panel-ready 24 under-counter drink fridge (model HOLD) - painted shaker panel, flush inset, Y 17-41, Z 4-33-1/4.';
+face(17, 4, 24, 29.25, 24, 1, 'door', '', { axis: 'x' });
+INFO = '#3 Panel-ready 15 ice maker (model HOLD) - painted shaker panel, flush inset, Y 1-16, Z 4-33-1/4.';
+face(1, 4, 15, 29.25, 24, 1, 'door', '', { axis: 'x' });
 INFO = '#3 Exposed end - shaker panel, runs to the floor.';
-endPanel('y', 43, 1, 0, 24, 0, 34.5, 2, 1.5, 5.5);   // base end standard
-INFO = '#3 Walnut top (Ryan 10/25: natural wood walnut; option reclaimed red oak).';
+endPanel('y', 43, 1, 0, 24, 0, 34.75, 2, 1.5, 5.5);   // base end standard
+INFO = '#3 Walnut top 1-1/4, X 0-25, Y 0-44 - 1 overhang at the open end (Ryan 10/27; natural wood walnut, option reclaimed red oak).';
 B(0, 0, 34.75, 25, 44, 1.25, mat.nat);
+INFO = '#3 Floating walnut shelves at 54 and 69-1/4 (Ryan suggestion 10/22).';
 for (const z of [54, 69.25]) B(0, 0, z, 11, 43, 1.75, mat.nat);
-INFO = '#1 / #2 Mudroom bench - shaker panels, 7 toe, 2 cushion (no shiplap).';
-for (const [x, y, w, d] of [[0, 88.5, 22, 33.5], [0, 122, 22, 22], [22, 121, 54, 23]]) {
-  B(x, y, 7, w, d, 12); B(x, y + (x ? 3 : 1), 0, w - (x ? 0 : 3), d - (x ? 3 : 2), 7, mat.paint, { edges: false });   // 7 tall toe, recessed 3
+INFO = '#1 / #2 Mudroom bench - shaker paneled, 7 toe recessed 3, 1-1/2 cap, 2 cushion (no shiplap). #2: 2 RS to the floor, LS at the #1 corner stops at the toe, panel Y 90-1/2 to 120. #1 (front plane Y 121, open end X 76-1/4): 2 open-end LS to the floor, corner stile stops at the toe, 1-1/2 top / bottom rails, 2 mullion, two 24-1/8 panels (Ryan 10/27).';
+B(0, 90.5, 0, 19, 33.5, 7, mat.paint, { edges: false }); B(0, 124, 0, 74.25, 20, 7, mat.paint, { edges: false });   // 7 toe, recessed 3
+B(0, 88.5, 7, 21.25, 33.5, 12); B(0, 122, 7, 22, 22, 12); B(22, 121.75, 7, 54.25, 22.25, 12);                    // case: #2, corner, #1
+FX(88.5, 90.5, 0, 19, 22); FX(120, 122, 7, 19, 22); FX(90.5, 120, 17.5, 19, 22); FX(90.5, 120, 7, 8.5, 22);      // #2 frame (front plane X 22)
+face(90.5, 8.5, 29.5, 9, 22, 1, 'flat', '', { axis: 'x', raw: true, plate: false });                              // #2 front panel Y 90-1/2 to 120
+FY(22, 24, 7, 19, 121, -1); FY(48.125, 50.125, 7, 19, 121, -1); FY(74.25, 76.25, 0, 19, 121, -1);               // #1 frame (front plane Y 121): corner stile, mullion, open-end LS
+FY(24, 74.25, 17.5, 19, 121, -1); FY(24, 74.25, 7, 8.5, 121, -1);
+face(24, 8.5, 24.125, 9, 121, -1, 'flat', '', { raw: true, plate: false }); face(50.125, 8.5, 24.125, 9, 121, -1, 'flat', '', { raw: true, plate: false });   // #1 panels
+for (const [x, y, w, d] of [[0, 88.5, 22, 33.5], [0, 122, 22, 22], [22, 121, 54.25, 23]]) {
   B(x, y, 19, w, d, 1.5); B(x, y, 20.5, w, d, 2, mat.cushion);
 }
-B(22, 91, 8.5, .4, 28.5, 9);                                     // #2 front panel (A2)
-for (const y of [88.5, 121]) B(19, y, 0, 3, 1, 7);                 // #2 outside stiles to the floor
-for (const x of [22, 75]) B(x, 121, 0, 1, 3, 7);                   // #1 outside stiles to the floor
 INFO = 'Bench exposed ends - base end panel standard to the floor: 2 stiles, 1-1/2 top rail, 5-1/2 bottom rail (Ryan 10/26).';
-endPanel('y', 88.5, -1, 0, 22, 0, 19, 2, 1.5, 5.5); B(0, 88.5, 0, 22, .5, 7);   // #2 end (faces the room)
-endPanel('x', 76, 1, 121, 144, 0, 19, 2, 1.5, 5.5); B(75.5, 121, 0, .5, 23, 7);   // #1 end
-for (let i = 0; i < 2; i++) B(24.5 + i * 26, 120.6, 8.5, 24, .4, 9); // #1 front panels
+endPanel('y', 88.5, -1, 0, 22, 0, 19, 2, 1.5, 5.5);   // #2 end (faces the room)
+endPanel('x', 76.25, 1, 121, 144, 0, 19, 2, 1.5, 5.5);   // #1 end
 
 // ---------- dining table at the corner bench (decorative, size TBD) ----------
 const dining = new THREE.Group(); scene.add(dining);
@@ -455,43 +497,100 @@ EDGE = true;
 
 // ---------- island (A3), placed per P1 ----------
 PARENT = island;
-// Island per Ryan's Cabinet Vision job (R3 1.4) - Ryan 10/26: match CV exactly.
-// Ends built up 3-3/4 (3 proud of the cabinets), 3 stiles / 3 top rail / bottom rail to 6-1/2, 3-1/2 x 3/4 baseboard
-// wrapping the island panels, 3 square legs on 4-1/2 blocks, 3 aprons continuous with the top rails.
-INFO = '#14 Island 26 - Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H.';
-B(195.6, 68.5, 4, 26, 24, 30.75); face(197.6, 5.5, 24, 12, 68.5, -1, 'drawer');
-EDGE = false; B(197.6, 67.85, 18.5, 24, .65, 15, mat.steel); B(199.1, 67.7, 21, 21, .2, 10, mat.black); pull(209.6, 67.3, 31, 18); EDGE = true;
-INFO = '#11 Island 54 (CV) - sink bay 24 (false front, 2 doors) at the #15 end with the 23 copper prep sink centered on it; bay 24-1/2 (drawer, 2 doors).';
-B(141.6, 68.5, 4, 54, 24, 30.75);
-face(169.1, 27.75, 24.5, 5.5, 68.5, -1, 'drawer'); face(143.6, 27.75, 24, 5.5, 68.5, -1, 'slab', ''); // false front
-[[169.1, 12.25, 'L'], [181.35, 12.25, 'R'], [143.6, 12, 'L'], [155.6, 12, 'R']].forEach(([x, w, k]) => face(x, 5.5, w, 20.75, 68.5, -1, 'door', k));
-INFO = 'Island toe - 4 recessed, cabinet color.';
-B(142.1, 71.5, 0, 79, 21, 4, mat.paint, { edges: false });
-function endX(x0, x1, y0, y1, dir) {                       // CV island end: 3 stiles, 3 top rail, bottom rail to 6-1/2
-  B(x0, y0, 0, x1 - x0, y1 - y0, 34.75);
-  endPanel('x', dir > 0 ? x1 : x0, dir, y0, y1, 0, 34.75, 3, 3, 6.5);
+// Island per Ryan's Cabinet Vision job (R3 1.4) as revised 10/27: ONE 80-inch #11 (old #14 + #11; the island dishwasher is gone) between two 3-inch
+// columns (#13 / #15 end panels). Face frame 1 behind the column faces, outside stiles 2 to the floor, flush inset fronts, baseboard wrapping the
+// columns and dying into the stiles, no plinth. Every part below comes from island_geometry.PARTS / FRONTS (regenerate with viewer/gen_island_js.py).
+// BEGIN GENERATED ISLAND (viewer/gen_island_js.py from island_geometry.py PARTS / FRONTS / CASE; do not edit by hand)
+const ISLAND = {
+  topZ: 34.75, frameFace: 2.0, case: [17.0, 97.0, 2.75, 26.5], caseZ0: 4.0,
+  parts: [   // [name, px0, px1, py0, py1, z0, z1]
+    ["#13 end front stile", 14.0, 17.0, 1.0, 4.0, 0, 34.75],
+    ["#13 end back stile", 14.0, 17.0, 26.5, 29.5, 0, 34.75],
+    ["#13 end bottom rail", 14.0, 17.0, 4.0, 26.5, 0, 6.5],
+    ["#13 end top rail", 14.0, 17.0, 4.0, 26.5, 31.75, 34.75],
+    ["#13 end recessed core", 14.25, 17.0, 4.0, 26.5, 6.5, 31.75],
+    ["#15 end front stile", 97.0, 100.0, 1.0, 4.0, 0, 34.75],
+    ["#15 end back stile", 96.25, 100.0, 39.5, 42.5, 0, 34.75],
+    ["#15 end bottom rail", 97.0, 100.0, 4.0, 39.5, 0, 6.5],
+    ["#15 end top rail", 97.0, 100.0, 4.0, 39.5, 31.75, 34.75],
+    ["#15 end recessed core", 97.0, 99.75, 4.0, 39.5, 6.5, 31.75],
+    ["#15 end build-up", 96.25, 97.0, 29.5, 39.5, 0, 34.75],
+    ["#12 left stile", 94.0, 96.25, 26.5, 29.5, 0, 34.75],
+    ["#12 mullion 1", 67.375, 70.375, 26.5, 29.5, 0, 34.75],
+    ["#12 mullion 2", 40.625, 43.625, 26.5, 29.5, 0, 34.75],
+    ["#12 bottom rail", 17.0, 94.0, 26.5, 29.5, 0, 6.5],
+    ["#12 top rail", 17.0, 94.0, 26.5, 29.5, 31.75, 34.75],
+    ["#12 recessed panel 1", 70.375, 94.0, 26.5, 29.25, 6.5, 31.75],
+    ["#12 recessed panel 2", 43.625, 67.375, 26.5, 29.25, 6.5, 31.75],
+    ["#12 recessed panel 3", 17.0, 40.625, 26.5, 29.25, 6.5, 31.75],
+    ["#11 stile left to floor", 17.0, 19.0, 2.0, 2.75, 0, 34.75],
+    ["#11 stile right to floor", 95.0, 97.0, 2.0, 2.75, 0, 34.75],
+    ["#11 mullion 1", 43.0, 45.0, 2.0, 2.75, 4.0, 34.75],
+    ["#11 mullion 2", 69.5, 71.0, 2.0, 2.75, 4.0, 34.75],
+    ["#11 bottom rail mw", 19.0, 43.0, 2.0, 2.75, 4.0, 5.5],
+    ["#11 top rail mw", 19.0, 43.0, 2.0, 2.75, 33.25, 34.75],
+    ["#11 rail under microwave", 19.0, 43.0, 2.0, 2.75, 16.75, 18.25],
+    ["#11 bottom rail drawer", 45.0, 69.5, 2.0, 2.75, 4.0, 5.5],
+    ["#11 top rail drawer", 45.0, 69.5, 2.0, 2.75, 33.25, 34.75],
+    ["#11 intermediate rail drawer", 45.0, 69.5, 2.0, 2.75, 26.25, 27.75],
+    ["#11 bottom rail sink", 71.0, 95.0, 2.0, 2.75, 4.0, 5.5],
+    ["#11 top rail sink", 71.0, 95.0, 2.0, 2.75, 33.25, 34.75],
+    ["#11 intermediate rail sink", 71.0, 95.0, 2.0, 2.75, 26.25, 27.75],
+    ["#11 toe board", 19.0, 95.0, 5.0, 5.75, 0, 4.0],
+    ["work leg", 1.0, 4.0, 1.0, 4.0, 3.5, 34.75],
+    ["work leg base block", 0.25, 4.75, 0.25, 4.75, 0, 3.5],
+    ["seating leg", 1.0, 4.0, 39.5, 42.5, 3.5, 34.75],
+    ["seating leg base block", 0.25, 4.75, 38.75, 43.25, 0, 3.5],
+    ["work apron", 4.0, 14.0, 1.0, 1.75, 31.75, 34.75],
+    ["end apron", 1.0, 1.75, 4.0, 39.5, 31.75, 34.75],
+    ["seating apron", 4.0, 96.25, 41.75, 42.5, 31.75, 34.75],
+    ["baseboard #13 column face", 13.25, 17.75, 0.25, 1.0, 0, 3.5],
+    ["baseboard #13 column return", 17.0, 17.75, 1.0, 2.0, 0, 3.5],
+    ["baseboard #13 end", 13.25, 14.0, 0.25, 30.25, 0, 3.5],
+    ["baseboard #15 column face", 96.25, 100.75, 0.25, 1.0, 0, 3.5],
+    ["baseboard #15 column return", 96.25, 97.0, 1.0, 2.0, 0, 3.5],
+    ["baseboard #15 end", 100.0, 100.75, 0.25, 43.25, 0, 3.5],
+    ["baseboard #15 seating return", 95.5, 100.75, 42.5, 43.25, 0, 3.5],
+    ["baseboard #15 inner return", 95.5, 96.25, 29.5, 42.5, 0, 3.5],
+    ["baseboard #12 back", 13.25, 95.5, 29.5, 30.25, 0, 3.5],
+  ],
+  fronts: [   // [kind, px0, px1, z0, z1, knob]
+    ["appliance", 19.0, 43.0, 18.25, 33.25, null],
+    ["drawer", 19.0, 43.0, 5.5, 16.75, null],
+    ["drawer", 45.0, 69.5, 27.75, 33.25, null],
+    ["door", 45.0, 57.25, 5.5, 26.25, "R"],
+    ["door", 57.25, 69.5, 5.5, 26.25, "L"],
+    ["false", 71.0, 95.0, 27.75, 33.25, null],
+    ["door", 71.0, 83.0, 5.5, 26.25, "R"],
+    ["door", 83.0, 95.0, 5.5, 26.25, "L"],
+  ],
+};
+// END GENERATED ISLAND
+const iw = (px0, px1, py0, py1) => [238.6 - px1, 67.5 + py0, px1 - px0, py1 - py0];   // island_geometry.to_world -> X, Y, width, depth
+const islandInfo = n =>
+  n.startsWith('baseboard') ? 'Island baseboard 3-1/2 x 3/4 - wraps the 3 columns and end panels and dies into the 2 face-frame stiles (Ryan 10/27); no plinth under the cabinet.'
+  : n.includes('toe board') ? 'Island work-side toe - 4 high board, recessed 3 behind the face frame, between the floor stiles (cabinet color).'
+  : n.startsWith('#15') ? '#15 End panel (prep-sink end) - CV: built up 3-3/4, 41-1/2 deep, 1 top overhang; 3 stiles, 3 top rail, bottom rail to 6-1/2, 1/4 recessed panel; 3-1/2 baseboard.'
+  : n.startsWith('#13') ? '#13 End panel (seating end) - CV: 3 column, 3 stiles / top rail, bottom rail to 6-1/2, 1/4 recessed panel; 3-1/2 baseboard. Knee space open to the legs.'
+  : n.startsWith('#12') ? '#12 Back seating panel - CV: 80 between the ends, 3 stile and mullions, 3 top rail, bottom rail to 6-1/2, panels 23-5/8 / 23-3/4 / 23-5/8; 3-1/2 baseboard.'
+  : n.startsWith('#11') ? '#11 Island 80 (one cabinet, old #14 + #11) - face frame 1 behind the column faces: 2 outside stiles to the floor, 2 / 1-1/2 mullions, rails 4-5-1/2, 16-3/4, 26-1/4, 33-1/4 (Ryan 10/27). Openings: 24 microwave drawer, 24-1/2 drawer + 2 doors, 24 prep-sink false front + 2 doors.'
+  : n.includes('leg') ? 'Island legs (2) - CV: 3 square posts on 4-1/2 x 4-1/2 x 3-1/2 base blocks, one at each corner of the #13 end.'
+  : 'Island apron - 3 tall border that catches the top (CV / Ryan 10/26).';
+INFO = '#11 Island case behind the face frame (Y 70-1/4 to 94), X 141.6-221.6.';
+{ const [cx0, cx1, cy0, cy1] = ISLAND.case, [X, Y, w, d] = iw(cx0, cx1, cy0, cy1); B(X, Y, ISLAND.caseZ0, w, d, ISLAND.topZ - ISLAND.caseZ0); }
+for (const [n, px0, px1, py0, py1, z0, z1] of ISLAND.parts) { const [X, Y, w, d] = iw(px0, px1, py0, py1); INFO = islandInfo(n); B(X, Y, z0, w, d, z1 - z0); }
+const IY = 67.5 + ISLAND.frameFace;                          // work-side frame plane Y 69.5 (fronts at Y 69.5-70.25, facing -Y)
+for (const [kind, px0, px1, z0, z1, kn] of ISLAND.fronts) {
+  const [X, , w] = iw(px0, px1, 0, 0), h = z1 - z0;
+  if (kind === 'appliance') {                                  // Cafe CWL112P2RS1 microwave drawer: stainless front, flush inset
+    INFO = '#11 Cafe CWL112P2RS1 24 microwave drawer, stainless (Kevin 10/25); cutout 22-1/4 W x 14-13/16 H; flush inset in the 24 x 15 face-frame opening.';
+    B(X, IY + .73, z0, w, .02, h, mat.reveal, { cast: false, edges: false });
+    B(X + .125, IY, z0 + .125, w - .25, .75, h - .25, mat.steel); B(X + 1.5, IY - .08, z0 + 1.6, w - 3, .08, h - 6.5, mat.black, { edges: false });
+    pull(X + w / 2, IY - .25, z1 - 2.25, 18);
+  } else if (kind === 'door') { INFO = '#11 Flush inset shaker door, ' + frac(w) + ' wide.'; face(X, z0, w, h, IY, -1, 'door', kn); }
+  else if (kind === 'false') { INFO = '#11 Prep-sink false front (slab, flush inset) above the pair of doors.'; face(X, z0, w, h, IY, -1, 'slab', ''); }
+  else { INFO = '#11 Flush inset drawer front.'; face(X, z0, w, h, IY, -1, 'drawer', 'R'); }
 }
-const BB = mat.paint;                                       // baseboard 3-1/2 x 3/4 wrapping the island panels (not a plinth)
-INFO = '#15 End panel (prep-sink end) - CV: built up 3-3/4, 41-1/2 deep, 1 top overhang; 3 stiles, 3 top rail, bottom rail to 6-1/2; panel 35-1/2 x 25-1/4; 3-1/2 baseboard.';
-endX(138.6, 142.35, 68.5, 110, -1);
-B(137.85, 67.75, 0, .75, 43, 3.5, BB);
-INFO = '#13 End panel (seating end) - CV: 3 proud of the 28-1/2 cabinet; panel 22-1/2 x 25-1/4; 3-1/2 baseboard. Knee space open to the legs.';
-endX(221.6, 224.6, 68.5, 97, 1);
-B(224.6, 67.75, 0, .75, 30, 3.5, BB);
-INFO = '#12 Back seating panel - CV: 80 between the ends, 3 stile and mullions, 3 top rail, bottom rail to 6-1/2, panels 23-5/8 / 23-3/4 / 23-5/8 x 25-1/4; 3-1/2 baseboard.';
-B(142.35, 94, 0, 79.25, 3, 34.75);
-{ const P = (x, z, w, h) => B(x, 97, z, w, .25, h);
-  P(141.6, 0, 3, 34.75); P(168.225, 0, 3, 34.75); P(194.975, 0, 3, 34.75);
-  P(144.6, 31.75, 77, 3); P(144.6, 0, 77, 6.5); }
-B(142.35, 97, 0, 79.25, .75, 3.5, BB); B(221.6, 96.25, 0, 3.75, .75, 3.5, BB);
-INFO = 'Island legs (2) - CV: 3 square posts on 4-1/2 x 4-1/2 x 3-1/2 base blocks, one at each corner of the #13 end.';
-for (const y of [68.5, 107]) { B(234.6, y, 3.5, 3, 3, 31.25); B(233.85, y - .75, 0, 4.5, 4.5, 3.5); }
-INFO = 'Island apron - 3 tall between the two legs (CV), continuous with the 3 top rails.';
-B(236.85, 71.5, 31.75, .75, 35.5, 3);
-INFO = 'Island apron - 3 tall border that catches the top: seating side from the #15 end to the leg (CV / Ryan 10/26).';
-B(142.35, 109.25, 31.75, 92.25, .75, 3);
-INFO = 'Island apron - 3 tall, work side from the #13 end to the leg (CV / Ryan 10/26).';
-B(224.6, 68.5, 31.75, 10, .75, 3);
 INFO = 'Island option A: quartzite top 101 x 43-1/2, no soapstone (illustrative). Option B: walnut with integrated soapstone (toggle).';
 // Island top + prep sink. Rebuilt when the prep-sink option changes.
 // Default: 18 stainless (as drawn). Option: Kevin's Sinkology Orwell SK201-23AC 23 hammered copper (23 x 17-3/4).
@@ -501,7 +600,7 @@ let sx = 144.1;                                         // prep sink centered on
 function buildIslandTop(sw, sd, copper) {
   for (const g of [topStone, topSW, prep]) { while (g.children.length) g.remove(g.children[0]); }
   sx = 155.6 - sw / 2;                                           // centered on the 24 sink bay
-  const sy0 = 69, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;   // 1-1/2 from the front edge
+  const sy0 = 70.5, sy1 = sy0 + sd, fy = sy1 + 2, savedP = PARENT, savedE = EDGE; EDGE = false;   // 3 from the front edge, behind the face frame (10/27)
   const cut = m => {                                             // full 101 x 43-1/2 slab with the sink cutout
     B(137.6, 67.5, 34.75, sx - 137.6, 43.5, 1.25, m); B(sx + sw, 67.5, 34.75, 238.6 - sx - sw, 43.5, 1.25, m);
     B(sx, 67.5, 34.75, sw, sy0 - 67.5, 1.25, m); B(sx, sy1, 34.75, sw, 111 - sy1, 1.25, m);
@@ -528,8 +627,9 @@ function buildIslandTop(sw, sd, copper) {
   INFO = copper ? 'Prep sink (Kevin 10/25): Sinkology Orwell SK201-23AC 23 hammered antique copper undermount, ~23 x 17-3/4, 8 deep, centered on the 24 #11 sink bay (CV island, Ryan 10/26) - confirm the bay fits the sink.'
                 : 'OPTION: 18 stainless prep sink. Drawn: Kevin 23 copper Orwell.';
   const sm = copper ? mat.copper : mat.steel, d = 8.9;
-  B(sx, sy0, 27, sw, sd, .5, sm); B(sx, sy0, 27, .5, sd, d, sm); B(sx + sw - .5, sy0, 27, .5, sd, d, sm);
-  B(sx, sy0, 27, sw, .5, d, sm); B(sx, sy1 - .5, 27, sw, .5, d, sm);
+  const by0 = sy0, bd = sy1 - by0;                            // bowl clears the face frame (back face Y 70-1/4)
+  B(sx, by0, 27, sw, bd, .5, sm); B(sx, by0, 27, .5, bd, d, sm); B(sx + sw - .5, by0, 27, .5, bd, d, sm);
+  B(sx, by0, 27, sw, .5, d, sm); B(sx, sy1 - .5, 27, sw, .5, d, sm);
   const c = new THREE.CatmullRomCurve3([[sx + sw / 2, 36, fy], [sx + sw / 2, 46, fy], [sx + sw / 2, 48.5, fy - 2.5], [sx + sw / 2, 46, fy - 6.5]].map(p => new THREE.Vector3(...p)));
   const f = new THREE.Mesh(new THREE.TubeGeometry(c, 30, .38, 10), mat.hw); f.castShadow = true; f.userData.info = 'Prep faucet - illustrative (matte black per Kevin board)'; prep.add(f);
   PARENT = savedP; EDGE = savedE;
@@ -598,11 +698,11 @@ ghost.visible = false;
 const SHIFT = 24.75;
 
 // ---------- cabinet tags ----------
-for (const [t, X, Y, Z] of [['#1', 49, 132, 26], ['#2', 11, 105, 26], ['#3', 12, 21.5, 42], ['#4', 85, 26, 99], ['#5', 121, 26, 99],
+for (const [t, X, Y, Z] of [['#1', 49, 132, 26], ['#2', 11, 105, 26], ['#3', 12, 21.5, 42], ['#4', 86.5, 26, 99], ['#5', 121, 26, 99],
   ['#6', 150, 26, 42], ['#7', 205, 26, 42], ['#8', 150, 14, 50], ['#10', 204, 14, 50], ['#16', 291.5, 14, 50],
 ]) tag(t, X, Y, Z);
 const islandTags = new THREE.Group(); island.add(islandTags);
-for (const [t, X] of [['#11', 169], ['#14', 209]]) islandTags.add(label(t, X, 64, 42, .036, '#ffffff', 'rgba(31,74,110,.92)'));
+for (const [t, X] of [['#11', 181.6]]) islandTags.add(label(t, X, 64, 42, .036, '#ffffff', 'rgba(31,74,110,.92)'));
 
 // ---------- dimensions ----------
 const dz = 1, dy = 30;
