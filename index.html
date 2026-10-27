@@ -315,17 +315,20 @@ const ceil = B(-5, -5, 101, 309, 188.5, 2, mat.wall, { cast: false, parent: scen
 // ---------- main wall cabinetry (A1) ----------
 PARENT = cabinetry; EDGE = true;
 const toe = (xa, xb, d = 21) => B(xa, 0, 0, xb - xa, d, 4, mat.paint, { edges: false });   // 4 toe kick in cabinet color, recessed 3 behind the frame plane (between the floor stiles)
-INFO = '#4 Tall pantry X 70.5-103 (2-1/2 from the door casing), 24 deep, to the soffit at 95-1/2. LS 2 | 28-1/2 opening | 2 stile shared with #5, stiles to the floor, 4 toe. Mid rail 1-1/2 at 33-1/4 (in line with the base top rails): three drawer fronts below in one opening (no rails between them), pair of doors above to the 2 top rail at 93-1/2. Flush inset 3/4 fronts. Door knobs 41 AFF. Behind the doors: 2 rollouts (4 tall, 12 clear between) and 2 adjustable shelves.';
-B(70.5, 0, 4, 30.5, 23.25, 91.5); toe(72.5, 101);
-FY(70.5, 72.5, 0, 95.5); FY(101, 103, 0, 95.5);
-FY(72.5, 101, 4, 5.5); FY(72.5, 101, 33.25, 34.75); FY(72.5, 101, 93.5, 95.5);
-plateY(72.5, 5.5, 28.5, 27.75);
+INFO = '#4 Tall pantry X 70.5-103 (2-1/2 from the door casing), 24-3/4 deep (one face plane with the fridge surround, so the shared stile is flush), to the soffit at 95-1/2. LS 2 | 28-1/2 opening | 2 stile shared with #5, stiles to the floor, 4 toe. Mid rail 1-1/2 at 33-1/4 (in line with the base top rails): three drawer fronts below in one opening (no rails between them), pair of doors above to the 2 top rail at 93-1/2. Flush inset 3/4 fronts. Door knobs 41 AFF. Behind the doors: 2 rollouts (4 tall, 12 clear between) and 2 adjustable shelves.';
+B(70.5, 0, 4, 30.5, 24, 91.5); toe(72.5, 101, 21.75);
+FY(70.5, 72.5, 0, 95.5, 24.75); FY(101, 103, 0, 95.5, 24.75);   // the one shared stile, in the tall-run plane
+FY(72.5, 101, 4, 5.5, 24.75); FY(72.5, 101, 33.25, 34.75, 24.75); FY(72.5, 101, 93.5, 95.5, 24.75);
+plateY(72.5, 5.5, 28.5, 27.75, 24.75);
 { const dh = (27.75 - 2 * .125) / 3;                                         // 9.1667 each, 1/8 between
-  for (let k = 0; k < 3; k++) face(72.625, 5.5 + k * (dh + .125), 28.25, dh, 24, 1, 'drawer', 'R', { raw: true, plate: false }); }
-face(72.5, 34.75, 14.25, 58.75, 24, 1, 'door', 'R', { kz: 41 }); face(86.75, 34.75, 14.25, 58.75, 24, 1, 'door', 'L', { kz: 41 });
+  for (let k = 0; k < 3; k++) face(72.625, 5.5 + k * (dh + .125), 28.25, dh, 24.75, 1, 'drawer', 'R', { raw: true, plate: false }); }
+face(72.5, 34.75, 14.25, 58.75, 24.75, 1, 'door', 'R', { kz: 41 }); face(86.75, 34.75, 14.25, 58.75, 24.75, 1, 'door', 'L', { kz: 41 });
 INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). 35-3/4 W x 83-7/8 H x 24-3/4 D; cutout 36 x 84 x 25. Surround X 101-141: shared 2 stile, 36 opening, 2 RS to the floor; frame face at Y 24-3/4 (A6), panels 3/4 behind it. Knob at 41 AFF (Ryan 10/26).';
-B(101, 0, 4, 40, 24, 91.5); toe(103, 139, 21.75);
-FY(101, 103, 0, 95.5, 24.75); FY(139, 141, 0, 95.5, 24.75);
+B(103, 0, 4.125, 36, 23.25, 79.875, mat.black);   // appliance body behind the flush panels (dark in the reveals)
+INFO = '#5 Refrigerator toe grille (appliance) - #4 + #5 are one cabinet built as two: the fridge half has the solid top rail, no cabinet bottom and no bottom rail; its panels run to the grille.';
+B(103, 21, 0, 36, .75, 4, mat.black || mat.reveal, { edges: false });
+INFO = '#5 Refrigerator: Cafe CIC36LK6ZII 36 integrated, panel-ready, left swing (Kevin 10/25). Shares the 2 stile and face plane with #4 (one cabinet built as two).';
+FY(139, 141, 0, 95.5, 24.75);
 face(103, 34.44, 36, 49.56, 24.75, 1, 'door', ''); knob(137.1, 25.2, 41);
 face(103, 24, 36, 9.81, 24.75, 1, 'drawer', ''); face(103, 4, 36, 19.4, 24.75, 1, 'drawer', ''); pull(121, 25.0, 21, 18);
 INFO = '#5 Solid top rail 84 to 95-1/2 above the refrigerator (R3) - the existing cross beam dies into it, so no doors / panel here (Ryan 10/26).';
@@ -365,7 +368,7 @@ upper(141, 18.125, '#8'); upper(195.125, 18.125, '#10', 'L', false, true); upper
 INFO = 'Upper end panels at the window - 2 stiles and 2 rails (Ryan 10/26).';
 endPanel('x', 213.25, 1, 0, 12, 54, 95.5, 2, 2, 2); endPanel('x', 284, -1, 0, 12, 54, 95.5, 2, 2, 2);
 INFO = '#4 Tall end panel (X 70.5) - 2 stiles and top rail, 5-1/2 bottom rail, 1-1/2 midrail at 33-1/4 in line with the base top rails (Ryan 10/26, 10/27).';
-endPanel('x', 70.5, -1, 0, 24, 0, 95.5, 2, 2, 5.5, 33.25);
+endPanel('x', 70.5, -1, 0, 24.75, 0, 95.5, 2, 2, 5.5, 33.25);
 INFO = 'Range: Cafe C2Y366P2TS1 36 dual-fuel (Kevin 10/25) - 31-1/8 deep with handle, 29-3/8 without. Hood bottom 30 above range top. Gas + 240V/30A.';
 EDGE = false;
 B(159.125, 0, 0, 36, 29.375, 35.5, mat.steel); B(163, 29.375, 6, 28, .3, 21, mat.black); B(159.125, 29.375, 29, 36, .6, 6, mat.steel);
